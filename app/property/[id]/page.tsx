@@ -1,13 +1,14 @@
 "use client"
 
 import * as React from "react"
-import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
-import Link from 'next/link'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { ArrowLeft, Edit, Calculator, TrendingUp, TrendingDown, Clock, DollarSign } from 'lucide-react'
+import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
+import Link from "next/link"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { ArrowLeft, Calculator, Clock, DollarSign, Edit, TrendingDown, TrendingUp } from "lucide-react"
 import {
   formatCurrency,
   formatPercent,
@@ -19,9 +20,9 @@ import {
   calculateSSD,
   calculateCPFAccruedInterest,
   getSSDCountdown,
-  calculateMortgageInterestPaid
-} from '@/lib/utils'
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
+  calculateMortgageInterestPaid,
+} from "@/lib/utils"
+import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts"
 
 interface Property {
   id: number
@@ -45,7 +46,7 @@ export default function PropertyDetail({ params }: { params: Promise<{ id: strin
   const { id } = React.use(params)
   const [property, setProperty] = useState<Property | null>(null)
   const [loading, setLoading] = useState(true)
-  const [currentValue, setCurrentValue] = useState('')
+  const [currentValue, setCurrentValue] = useState("")
   const [updating, setUpdating] = useState(false)
   const router = useRouter()
 
@@ -61,10 +62,10 @@ export default function PropertyDetail({ params }: { params: Promise<{ id: strin
         setProperty(data)
         setCurrentValue(data.current_value?.toString() || data.purchase_price.toString())
       } else if (response.status === 404) {
-        router.push('/')
+        router.push("/")
       }
     } catch (error) {
-      console.error('Error fetching property:', error)
+      console.error("Error fetching property:", error)
     } finally {
       setLoading(false)
     }
@@ -76,14 +77,14 @@ export default function PropertyDetail({ params }: { params: Promise<{ id: strin
     setUpdating(true)
     try {
       const response = await fetch(`/api/properties/${property.id}`, {
-        method: 'PUT',
+        method: "PUT",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           ...property,
-          current_value: parseFloat(currentValue)
-        })
+          current_value: parseFloat(currentValue),
+        }),
       })
 
       if (response.ok) {
@@ -91,18 +92,18 @@ export default function PropertyDetail({ params }: { params: Promise<{ id: strin
         setProperty(updated)
       }
     } catch (error) {
-      console.error('Error updating property:', error)
+      console.error("Error updating property:", error)
     } finally {
       setUpdating(false)
     }
   }
 
   if (loading) {
-    return <div className="flex justify-center items-center min-h-[50vh]">Loading...</div>
+    return <div className="flex min-h-[50vh] items-center justify-center text-muted-foreground">Loading property details...</div>
   }
 
   if (!property) {
-    return <div className="text-center">Property not found</div>
+    return <div className="py-8 text-center">Property not found.</div>
   }
 
   const totalCost = calculateTotalCost(property)
@@ -120,35 +121,23 @@ export default function PropertyDetail({ params }: { params: Promise<{ id: strin
     property.purchase_date
   )
 
-  // Generate projection data for chart
+  const salePrice = property.current_value || property.purchase_price
+  const agentFees = salePrice * 0.02
+  const cpfRepayment = property.cpf_amount + cpfAccruedInterest
+  const netSaleProceeds = salePrice - ssdAmount - agentFees - cpfRepayment - totalCost
+
   const generateProjectionData = () => {
     const data = []
     const startDate = new Date(property.purchase_date)
     const currentDate = new Date()
-    
-    // Historical data point
-    data.push({
-      date: startDate.getFullYear().toString(),
-      value: property.purchase_price,
-      type: 'historical'
-    })
-    
-    // Current data point
-    data.push({
-      date: currentDate.getFullYear().toString(),
-      value: property.current_value || property.purchase_price,
-      type: 'current'
-    })
 
-    // Future projections (5 years) with 3% annual growth
+    data.push({ date: startDate.getFullYear().toString(), value: property.purchase_price, type: "historical" })
+    data.push({ date: currentDate.getFullYear().toString(), value: salePrice, type: "current" })
+
     for (let i = 1; i <= 5; i++) {
       const futureDate = new Date(currentDate.getFullYear() + i, 0, 1)
-      const projectedValue = (property.current_value || property.purchase_price) * Math.pow(1.03, i)
-      data.push({
-        date: futureDate.getFullYear().toString(),
-        value: projectedValue,
-        type: 'projection'
-      })
+      const projectedValue = salePrice * Math.pow(1.03, i)
+      data.push({ date: futureDate.getFullYear().toString(), value: projectedValue, type: "projection" })
     }
 
     return data
@@ -157,28 +146,30 @@ export default function PropertyDetail({ params }: { params: Promise<{ id: strin
   const chartData = generateProjectionData()
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-4">
-          <Button variant="outline" size="icon" asChild>
-            <Link href="/">
-              <ArrowLeft className="h-4 w-4" />
-            </Link>
-          </Button>
-          <div>
-            <h1 className="text-3xl font-bold">{property.name}</h1>
-            <p className="text-muted-foreground">{property.address}</p>
+    <div className="mx-auto max-w-7xl space-y-6 sm:space-y-8">
+      <section className="rounded-3xl border border-border/60 bg-card/75 p-5 shadow-sm backdrop-blur sm:p-8">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div className="flex flex-wrap items-start gap-3 sm:gap-4">
+            <Button variant="outline" size="icon" asChild>
+              <Link href="/">
+                <ArrowLeft className="h-4 w-4" />
+              </Link>
+            </Button>
+            <div className="space-y-1">
+              <h1 className="text-2xl font-bold tracking-tight sm:text-4xl">{property.name}</h1>
+              <p className="text-sm text-muted-foreground sm:text-base">{property.address}</p>
+              <span className="inline-flex rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">{property.type}</span>
+            </div>
           </div>
+          <Button variant="outline" className="w-full lg:w-auto">
+            <Edit className="mr-2 h-4 w-4" />
+            Edit Property
+          </Button>
         </div>
-        <Button variant="outline">
-          <Edit className="h-4 w-4 mr-2" />
-          Edit Property
-        </Button>
-      </div>
+      </section>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
+      <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <Card className="metric-tile">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Investment</CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
@@ -189,89 +180,69 @@ export default function PropertyDetail({ params }: { params: Promise<{ id: strin
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="metric-tile">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Current Value</CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(property.current_value || property.purchase_price)}</div>
-            <div className="flex items-center space-x-2 mt-2">
-              <input
-                type="number"
-                value={currentValue}
-                onChange={(e) => setCurrentValue(e.target.value)}
-                className="text-xs border rounded px-2 py-1 w-24"
-                placeholder="Update"
-              />
-              <Button
-                size="sm"
-                onClick={updateCurrentValue}
-                disabled={updating}
-                className="text-xs"
-              >
-                {updating ? 'Updating...' : 'Update'}
+          <CardContent className="space-y-2">
+            <div className="text-2xl font-bold">{formatCurrency(salePrice)}</div>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Input type="number" value={currentValue} onChange={(e) => setCurrentValue(e.target.value)} placeholder="Update value" className="h-9 text-xs" />
+              <Button size="sm" onClick={updateCurrentValue} disabled={updating} className="h-9 shrink-0">
+                {updating ? "Updating..." : "Update"}
               </Button>
             </div>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="metric-tile">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Net P&L</CardTitle>
-            {netProfit >= 0 ? (
-              <TrendingUp className="h-4 w-4 text-green-600" />
-            ) : (
-              <TrendingDown className="h-4 w-4 text-red-600" />
-            )}
+            {netProfit >= 0 ? <TrendingUp className="h-4 w-4 text-emerald-500" /> : <TrendingDown className="h-4 w-4 text-red-500" />}
           </CardHeader>
           <CardContent>
-            <div className={`text-2xl font-bold ${netProfit >= 0 ? 'profit-positive' : 'profit-negative'}`}>
-              {formatCurrency(netProfit)}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              ROI: {formatPercent(roi)} | Annual: {formatPercent(annualizedReturn)}
-            </p>
+            <div className={`text-2xl font-bold ${netProfit >= 0 ? "profit-positive" : "profit-negative"}`}>{formatCurrency(netProfit)}</div>
+            <p className="text-xs text-muted-foreground">ROI {formatPercent(roi)} | Annual {formatPercent(annualizedReturn)}</p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="metric-tile">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Break Even</CardTitle>
             <Calculator className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{formatCurrency(breakEvenPrice)}</div>
-            <p className="text-xs text-muted-foreground">Including SSD</p>
+            <p className="text-xs text-muted-foreground">Estimated with SSD</p>
           </CardContent>
         </Card>
-      </div>
+      </section>
 
-      {/* SSD Status */}
       {!ssdInfo.isExempt && (
-        <Card className="border-amber-200 dark:border-amber-800">
+        <Card className="border-amber-300/60 bg-amber-50/60 dark:border-amber-800 dark:bg-amber-950/30">
           <CardHeader>
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center gap-2">
               <Clock className="h-5 w-5 text-amber-600" />
-              <CardTitle className="text-lg">Seller's Stamp Duty (SSD)</CardTitle>
+              <CardTitle className="text-lg">Seller&apos;s Stamp Duty (SSD)</CardTitle>
             </div>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
               <div>
-                <p className="text-sm text-muted-foreground">Current Rate</p>
+                <p className="text-xs text-muted-foreground">Current Rate</p>
                 <p className="text-2xl font-bold text-amber-600">{ssdInfo.currentRate}%</p>
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Days to Next Tier</p>
+                <p className="text-xs text-muted-foreground">Days to Next Tier</p>
                 <p className="text-2xl font-bold">{ssdInfo.daysToNextTier}</p>
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Next Rate</p>
-                <p className="text-2xl font-bold text-green-600">{ssdInfo.nextRate}%</p>
+                <p className="text-xs text-muted-foreground">Next Rate</p>
+                <p className="text-2xl font-bold text-emerald-500">{ssdInfo.nextRate}%</p>
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">SSD Amount</p>
+                <p className="text-xs text-muted-foreground">SSD Amount</p>
                 <p className="text-2xl font-bold">{formatCurrency(ssdAmount)}</p>
               </div>
             </div>
@@ -280,37 +251,35 @@ export default function PropertyDetail({ params }: { params: Promise<{ id: strin
       )}
 
       <Tabs defaultValue="overview" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="financials">Financials</TabsTrigger>
-          <TabsTrigger value="projections">Projections</TabsTrigger>
-          <TabsTrigger value="transactions">Transactions</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-2 gap-1 sm:flex sm:w-auto">
+          <TabsTrigger value="overview" className="w-full">Overview</TabsTrigger>
+          <TabsTrigger value="financials" className="w-full">Financials</TabsTrigger>
+          <TabsTrigger value="projections" className="w-full">Projections</TabsTrigger>
+          <TabsTrigger value="transactions" className="w-full">Transactions</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             <Card>
               <CardHeader>
                 <CardTitle>Property Details</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Type</p>
-                    <p className="font-semibold">{property.type}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Purchase Date</p>
-                    <p className="font-semibold">{new Date(property.purchase_date).toLocaleDateString()}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Years Owned</p>
-                    <p className="font-semibold">{ssdInfo.yearsOwned.toFixed(1)} years</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Purchase Price</p>
-                    <p className="font-semibold">{formatCurrency(property.purchase_price)}</p>
-                  </div>
+              <CardContent className="grid grid-cols-2 gap-3 sm:gap-4">
+                <div>
+                  <p className="text-xs text-muted-foreground">Type</p>
+                  <p className="font-semibold">{property.type}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Purchase Date</p>
+                  <p className="font-semibold">{new Date(property.purchase_date).toLocaleDateString()}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Years Owned</p>
+                  <p className="font-semibold">{ssdInfo.yearsOwned.toFixed(1)} years</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Purchase Price</p>
+                  <p className="font-semibold">{formatCurrency(property.purchase_price)}</p>
                 </div>
               </CardContent>
             </Card>
@@ -319,35 +288,35 @@ export default function PropertyDetail({ params }: { params: Promise<{ id: strin
               <CardHeader>
                 <CardTitle>Cost Breakdown</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
+              <CardContent className="space-y-3 text-sm">
                 <div className="flex justify-between">
-                  <span className="text-sm">Purchase Price</span>
+                  <span className="text-muted-foreground">Purchase Price</span>
                   <span className="font-semibold">{formatCurrency(property.purchase_price)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-sm">Stamp Duty</span>
+                  <span className="text-muted-foreground">Stamp Duty</span>
                   <span className="font-semibold">{formatCurrency(property.stamp_duty)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-sm">Renovation</span>
+                  <span className="text-muted-foreground">Renovation</span>
                   <span className="font-semibold">{formatCurrency(property.renovation_cost)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-sm">Agent Fees</span>
+                  <span className="text-muted-foreground">Agent Fees</span>
                   <span className="font-semibold">{formatCurrency(property.agent_fees)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-sm">Mortgage Interest (Paid)</span>
+                  <span className="text-muted-foreground">Mortgage Interest (Paid)</span>
                   <span className="font-semibold">{formatCurrency(mortgageInterestPaid)}</span>
                 </div>
                 {property.cpf_amount > 0 && (
                   <div className="flex justify-between">
-                    <span className="text-sm">CPF Accrued Interest</span>
+                    <span className="text-muted-foreground">CPF Accrued Interest</span>
                     <span className="font-semibold">{formatCurrency(cpfAccruedInterest)}</span>
                   </div>
                 )}
-                <hr />
-                <div className="flex justify-between text-lg font-bold">
+                <hr className="border-border" />
+                <div className="flex justify-between text-base font-bold">
                   <span>Total Cost</span>
                   <span>{formatCurrency(totalCost)}</span>
                 </div>
@@ -357,33 +326,31 @@ export default function PropertyDetail({ params }: { params: Promise<{ id: strin
         </TabsContent>
 
         <TabsContent value="financials" className="space-y-4">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             <Card>
               <CardHeader>
                 <CardTitle>Investment Returns</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-3">
-                  <div className="flex justify-between">
-                    <span className="text-sm">Total Investment</span>
-                    <span className="font-semibold">{formatCurrency(totalCost)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm">Current Value</span>
-                    <span className="font-semibold">{formatCurrency(property.current_value || property.purchase_price)}</span>
-                  </div>
-                  <div className={`flex justify-between ${netProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                    <span className="text-sm">Net Profit/Loss</span>
-                    <span className="font-semibold">{formatCurrency(netProfit)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm">ROI</span>
-                    <span className="font-semibold">{formatPercent(roi)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm">Annualized Return</span>
-                    <span className="font-semibold">{formatPercent(annualizedReturn)}</span>
-                  </div>
+              <CardContent className="space-y-3 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Total Investment</span>
+                  <span className="font-semibold">{formatCurrency(totalCost)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Current Value</span>
+                  <span className="font-semibold">{formatCurrency(salePrice)}</span>
+                </div>
+                <div className={`flex justify-between ${netProfit >= 0 ? "text-emerald-600" : "text-red-600"}`}>
+                  <span>Net Profit/Loss</span>
+                  <span className="font-semibold">{formatCurrency(netProfit)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">ROI</span>
+                  <span className="font-semibold">{formatPercent(roi)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Annualized Return</span>
+                  <span className="font-semibold">{formatPercent(annualizedReturn)}</span>
                 </div>
               </CardContent>
             </Card>
@@ -392,41 +359,29 @@ export default function PropertyDetail({ params }: { params: Promise<{ id: strin
               <CardHeader>
                 <CardTitle>Sell Now Analysis</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-3">
-                  <div className="flex justify-between">
-                    <span className="text-sm">Selling Price</span>
-                    <span className="font-semibold">{formatCurrency(property.current_value || property.purchase_price)}</span>
-                  </div>
+              <CardContent className="space-y-3 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Selling Price</span>
+                  <span className="font-semibold">{formatCurrency(salePrice)}</span>
+                </div>
+                <div className="flex justify-between text-red-600">
+                  <span>SSD ({ssdInfo.currentRate}%)</span>
+                  <span className="font-semibold">-{formatCurrency(ssdAmount)}</span>
+                </div>
+                <div className="flex justify-between text-red-600">
+                  <span>Agent Fees (2%)</span>
+                  <span className="font-semibold">-{formatCurrency(agentFees)}</span>
+                </div>
+                {property.cpf_amount > 0 && (
                   <div className="flex justify-between text-red-600">
-                    <span className="text-sm">SSD ({ssdInfo.currentRate}%)</span>
-                    <span className="font-semibold">-{formatCurrency(ssdAmount)}</span>
+                    <span>CPF + Interest</span>
+                    <span className="font-semibold">-{formatCurrency(cpfRepayment)}</span>
                   </div>
-                  <div className="flex justify-between text-red-600">
-                    <span className="text-sm">Agent Fees (2%)</span>
-                    <span className="font-semibold">-{formatCurrency((property.current_value || property.purchase_price) * 0.02)}</span>
-                  </div>
-                  {property.cpf_amount > 0 && (
-                    <div className="flex justify-between text-red-600">
-                      <span className="text-sm">CPF + Interest</span>
-                      <span className="font-semibold">-{formatCurrency(property.cpf_amount + cpfAccruedInterest)}</span>
-                    </div>
-                  )}
-                  <hr />
-                  <div className={`flex justify-between text-lg font-bold ${
-                    ((property.current_value || property.purchase_price) - ssdAmount - ((property.current_value || property.purchase_price) * 0.02) - (property.cpf_amount + cpfAccruedInterest) - totalCost) >= 0 
-                      ? 'text-green-600' 
-                      : 'text-red-600'
-                  }`}>
-                    <span>Net Proceeds</span>
-                    <span>{formatCurrency(
-                      (property.current_value || property.purchase_price) - 
-                      ssdAmount - 
-                      ((property.current_value || property.purchase_price) * 0.02) - 
-                      (property.cpf_amount + cpfAccruedInterest) - 
-                      totalCost
-                    )}</span>
-                  </div>
+                )}
+                <hr className="border-border" />
+                <div className={`flex justify-between text-base font-bold ${netSaleProceeds >= 0 ? "text-emerald-600" : "text-red-600"}`}>
+                  <span>Net Proceeds</span>
+                  <span>{formatCurrency(netSaleProceeds)}</span>
                 </div>
               </CardContent>
             </Card>
@@ -437,28 +392,21 @@ export default function PropertyDetail({ params }: { params: Promise<{ id: strin
           <Card>
             <CardHeader>
               <CardTitle>Value Projection</CardTitle>
-              <CardDescription>Historical, current, and projected property values (3% annual growth assumed)</CardDescription>
+              <CardDescription>Historical, current, and projected property values assuming 3% annual growth.</CardDescription>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="date" />
-                  <YAxis tickFormatter={(value) => `$${(value / 1000).toFixed(0)}k`} />
-                  <Tooltip 
-                    formatter={(value) => [formatCurrency(value as number), "Value"]}
-                    labelFormatter={(label) => `Year: ${label}`}
-                  />
-                  <Legend />
-                  <Line 
-                    type="monotone" 
-                    dataKey="value" 
-                    stroke="#8884d8" 
-                    strokeWidth={2}
-                    dot={{ r: 4 }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
+              <div className="h-64 w-full sm:h-80">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={chartData} margin={{ top: 10, right: 12, left: 0, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis dataKey="date" tick={{ fontSize: 12 }} />
+                    <YAxis tickFormatter={(value) => `$${(value / 1000).toFixed(0)}k`} tick={{ fontSize: 12 }} width={50} />
+                    <Tooltip formatter={(value) => [formatCurrency(value as number), "Value"]} labelFormatter={(label) => `Year: ${label}`} />
+                    <Legend />
+                    <Line type="monotone" dataKey="value" stroke="#0ea5e9" strokeWidth={3} dot={{ r: 3 }} activeDot={{ r: 5 }} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -467,17 +415,17 @@ export default function PropertyDetail({ params }: { params: Promise<{ id: strin
           <Card>
             <CardHeader>
               <CardTitle>Transaction History</CardTitle>
-              <CardDescription>All transactions related to this property</CardDescription>
+              <CardDescription>All transactions related to this property.</CardDescription>
             </CardHeader>
             <CardContent>
               {property.transactions && property.transactions.length > 0 ? (
-                <div className="space-y-2">
+                <div className="space-y-2.5">
                   {property.transactions.map((transaction) => (
-                    <div key={transaction.id} className="flex justify-between items-center p-3 border rounded">
+                    <div key={transaction.id} className="flex flex-col gap-2 rounded-xl border border-border/70 p-3 sm:flex-row sm:items-center sm:justify-between">
                       <div>
                         <p className="font-semibold">{transaction.description}</p>
                         <p className="text-sm text-muted-foreground">
-                          {new Date(transaction.date).toLocaleDateString()} • {transaction.type}
+                          {new Date(transaction.date).toLocaleDateString()} | {transaction.type}
                         </p>
                       </div>
                       <span className="font-semibold">{formatCurrency(transaction.amount)}</span>
@@ -485,7 +433,7 @@ export default function PropertyDetail({ params }: { params: Promise<{ id: strin
                   ))}
                 </div>
               ) : (
-                <p className="text-center text-muted-foreground py-8">No transactions recorded</p>
+                <p className="py-8 text-center text-muted-foreground">No transactions recorded.</p>
               )}
             </CardContent>
           </Card>
