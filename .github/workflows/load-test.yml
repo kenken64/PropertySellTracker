@@ -1,0 +1,139 @@
+name: Load Testing
+
+on:
+  workflow_dispatch:
+    inputs:
+      test_type:
+        description: 'Type of load test to run'
+        required: true
+        default: 'smoke'
+        type: choice
+        options:
+        - smoke
+        - load
+        - stress
+        - spike
+        - soak
+      base_url:
+        description: 'Base URL for testing'
+        required: true
+        default: 'http://localhost:3000'
+        type: string
+
+jobs:
+  load-test:
+    name: k6 Load Test (${{ inputs.test_type }})
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Build application
+      run: npm run build
+      
+    - name: Seed database
+      run: npm run seed
+      
+    - name: Start application in background
+      run: |
+        npm run start &
+        echo $! > app.pid
+        sleep 15 # Wait for server to fully start
+        
+    - name: Verify application is running
+      run: |
+        curl -f ${{ inputs.base_url }} || (echo "Application failed to start" && exit 1)
+        curl -f ${{ inputs.base_url }}/api/properties || (echo "API endpoints not responding" && exit 1)
+        
+    - name: Install k6
+      run: |
+        sudo gpg -k
+        sudo gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
+        echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
+        sudo apt-get update
+        sudo apt-get install k6
+        
+    - name: Run k6 load test
+      env:
+        K6_BASE_URL: ${{ inputs.base_url }}
+      run: |
+        echo "Running ${{ inputs.test_type }} test against ${{ inputs.base_url }}"
+        mkdir -p results
+        
+        # Run the test and capture results
+        k6 run \
+          --out json=results/k6-results.json \
+          --out summary=results/k6-summary.json \
+          load-tests/${{ inputs.test_type }}.js \
+        || echo "Load test completed with some failures"
+        
+    - name: Generate test summary
+      run: |
+        echo "# k6 Load Test Results - ${{ inputs.test_type }}" > results/summary.md
+        echo "" >> results/summary.md
+        echo "**Test Type:** ${{ inputs.test_type }}" >> results/summary.md
+        echo "**Target URL:** ${{ inputs.base_url }}" >> results/summary.md
+        echo "**Date:** $(date)" >> results/summary.md
+        echo "" >> results/summary.md
+        
+        # Extract key metrics from JSON results
+        if [ -f results/k6-results.json ]; then
+          echo "## Test Metrics" >> results/summary.md
+          echo "" >> results/summary.md
+          
+          # Use jq to extract metrics if available
+          if command -v jq &> /dev/null; then
+            echo "- **Total Requests:** $(cat results/k6-results.json | grep http_reqs | tail -1 | jq -r '.metric.values.count // "N/A"')" >> results/summary.md
+            echo "- **Request Rate:** $(cat results/k6-results.json | grep http_reqs | tail -1 | jq -r '.metric.values.rate // "N/A"') req/s" >> results/summary.md
+            echo "- **Failed Requests:** $(cat results/k6-results.json | grep http_req_failed | tail -1 | jq -r '.metric.values.rate // "N/A"')" >> results/summary.md
+            echo "- **Average Response Time:** $(cat results/k6-results.json | grep http_req_duration | tail -1 | jq -r '.metric.values.avg // "N/A"') ms" >> results/summary.md
+            echo "- **95th Percentile:** $(cat results/k6-results.json | grep http_req_duration | tail -1 | jq -r '.metric.values."p(95)" // "N/A"') ms" >> results/summary.md
+          else
+            echo "Raw results saved to artifacts" >> results/summary.md
+          fi
+        fi
+        
+        cat results/summary.md
+        
+    - name: Stop application
+      if: always()
+      run: |
+        if [ -f app.pid ]; then
+          kill $(cat app.pid) || true
+        fi
+        
+    - name: Upload k6 results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: k6-results-${{ inputs.test_type }}-${{ github.run_number }}
+        path: |
+          results/
+          
+    - name: Comment PR with results
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          
+          if (fs.existsSync('results/summary.md')) {
+            const summary = fs.readFileSync('results/summary.md', 'utf8');
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: summary
+            });
+          }

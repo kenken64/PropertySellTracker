@@ -7,7 +7,12 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "seed": "node scripts/seed.js"
+    "seed": "node scripts/seed.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui"
   },
   "dependencies": {
     "next": "16.1.6",
@@ -26,22 +31,19 @@
     "clsx": "2.1.2",
     "tailwind-merge": "2.8.0",
     "lucide-react": "0.575.0",
-    "@radix-ui/react-slot": "1.2.4",
-    "@radix-ui/react-tabs": "1.2.1",
-    "@radix-ui/react-select": "2.3.3",
-    "@radix-ui/react-dialog": "1.2.3",
-    "@radix-ui/react-label": "2.2.0",
-    "@radix-ui/react-switch": "1.2.1",
-    "recharts": "2.15.0",
     "date-fns": "4.1.0",
     "react-hook-form": "7.55.0",
-    "@hookform/resolvers": "3.12.0",
-    "zod": "3.25.0",
-    "next-themes": "0.4.7"
+    "zod": "3.25.0"
   },
   "devDependencies": {
     "eslint": "9.19.0",
     "eslint-config-next": "16.1.6",
-    "@types/eslint": "9.7.0"
+    "@types/eslint": "9.7.0",
+    "vitest": "^3.0.0",
+    "@testing-library/react": "^16.0.0",
+    "@testing-library/jest-dom": "^6.6.0",
+    "jsdom": "^26.0.0",
+    "@vitejs/plugin-react": "^4.3.0",
+    "@playwright/test": "^1.50.0"
   }
 }
