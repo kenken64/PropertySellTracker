@@ -1,29 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server'
-import db from '@/lib/database'
+import sql, { initDB } from '@/lib/database'
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    await initDB()
     const { id } = await params
-    const property = db.prepare('SELECT * FROM properties WHERE id = ?').get(id)
+    const properties = await sql`SELECT * FROM properties WHERE id = ${id}`
     
-    if (!property) {
+    if (properties.length === 0) {
       return NextResponse.json(
         { error: 'Property not found' },
         { status: 404 }
       )
     }
 
-    // Get transactions for this property
-    const transactions = db.prepare(`
+    const transactions = await sql`
       SELECT * FROM transactions 
-      WHERE property_id = ? 
+      WHERE property_id = ${id}
       ORDER BY date DESC
-    `).all(id)
+    `
 
-    return NextResponse.json({ ...property, transactions })
+    return NextResponse.json({ ...properties[0], transactions })
   } catch (error) {
     console.error('Error fetching property:', error)
     return NextResponse.json(
@@ -38,43 +38,30 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    await initDB()
     const { id } = await params
     const data = await request.json()
     
-    const stmt = db.prepare(`
+    const result = await sql`
       UPDATE properties 
-      SET name = ?, address = ?, type = ?, purchase_price = ?, purchase_date = ?,
-          stamp_duty = ?, renovation_cost = ?, agent_fees = ?, current_value = ?,
-          cpf_amount = ?, mortgage_amount = ?, mortgage_interest_rate = ?, mortgage_tenure = ?
-      WHERE id = ?
-    `)
-    
-    const result = stmt.run(
-      data.name,
-      data.address,
-      data.type,
-      data.purchase_price,
-      data.purchase_date,
-      data.stamp_duty,
-      data.renovation_cost,
-      data.agent_fees,
-      data.current_value,
-      data.cpf_amount,
-      data.mortgage_amount,
-      data.mortgage_interest_rate,
-      data.mortgage_tenure,
-      id
-    )
+      SET name = ${data.name}, address = ${data.address}, type = ${data.type}, 
+          purchase_price = ${data.purchase_price}, purchase_date = ${data.purchase_date},
+          stamp_duty = ${data.stamp_duty}, renovation_cost = ${data.renovation_cost}, 
+          agent_fees = ${data.agent_fees}, current_value = ${data.current_value},
+          cpf_amount = ${data.cpf_amount}, mortgage_amount = ${data.mortgage_amount}, 
+          mortgage_interest_rate = ${data.mortgage_interest_rate}, mortgage_tenure = ${data.mortgage_tenure}
+      WHERE id = ${id}
+      RETURNING *
+    `
 
-    if (result.changes === 0) {
+    if (result.length === 0) {
       return NextResponse.json(
         { error: 'Property not found' },
         { status: 404 }
       )
     }
 
-    const updatedProperty = db.prepare('SELECT * FROM properties WHERE id = ?').get(id)
-    return NextResponse.json(updatedProperty)
+    return NextResponse.json(result[0])
   } catch (error) {
     console.error('Error updating property:', error)
     return NextResponse.json(
@@ -89,11 +76,11 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    await initDB()
     const { id } = await params
-    const stmt = db.prepare('DELETE FROM properties WHERE id = ?')
-    const result = stmt.run(id)
+    const result = await sql`DELETE FROM properties WHERE id = ${id} RETURNING id`
 
-    if (result.changes === 0) {
+    if (result.length === 0) {
       return NextResponse.json(
         { error: 'Property not found' },
         { status: 404 }

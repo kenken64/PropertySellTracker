@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
-import db from '@/lib/database'
+import sql, { initDB } from '@/lib/database'
 import { calculateBSD } from '@/lib/utils'
 
 export async function GET() {
   try {
-    const properties = db.prepare(`
+    await initDB()
+    const properties = await sql`
       SELECT * FROM properties 
       ORDER BY created_at DESC
-    `).all()
+    `
 
     return NextResponse.json(properties)
   } catch (error) {
@@ -21,51 +22,32 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
+    await initDB()
     const data = await request.json()
     
     // Calculate stamp duty if not provided
     const stampDuty = data.stamp_duty || calculateBSD(data.purchase_price)
     
-    const stmt = db.prepare(`
+    const result = await sql`
       INSERT INTO properties (
         name, address, type, purchase_price, purchase_date,
         stamp_duty, renovation_cost, agent_fees, current_value,
         cpf_amount, mortgage_amount, mortgage_interest_rate, mortgage_tenure
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `)
-    
-    const result = stmt.run(
-      data.name,
-      data.address,
-      data.type,
-      data.purchase_price,
-      data.purchase_date,
-      stampDuty,
-      data.renovation_cost || 0,
-      data.agent_fees || 0,
-      data.current_value || data.purchase_price,
-      data.cpf_amount || 0,
-      data.mortgage_amount || 0,
-      data.mortgage_interest_rate || 0,
-      data.mortgage_tenure || 0
-    )
+      ) VALUES (
+        ${data.name}, ${data.address}, ${data.type}, ${data.purchase_price}, ${data.purchase_date},
+        ${stampDuty}, ${data.renovation_cost || 0}, ${data.agent_fees || 0}, ${data.current_value || data.purchase_price},
+        ${data.cpf_amount || 0}, ${data.mortgage_amount || 0}, ${data.mortgage_interest_rate || 0}, ${data.mortgage_tenure || 0}
+      ) RETURNING *
+    `
+
+    const newProperty = result[0]
 
     // Insert purchase transaction
-    const transactionStmt = db.prepare(`
+    await sql`
       INSERT INTO transactions (property_id, type, amount, description, date)
-      VALUES (?, ?, ?, ?, ?)
-    `)
-    
-    transactionStmt.run(
-      result.lastInsertRowid,
-      'purchase',
-      data.purchase_price,
-      'Initial property purchase',
-      data.purchase_date
-    )
+      VALUES (${newProperty.id}, 'purchase', ${data.purchase_price}, 'Initial property purchase', ${data.purchase_date})
+    `
 
-    const newProperty = db.prepare('SELECT * FROM properties WHERE id = ?').get(result.lastInsertRowid)
-    
     return NextResponse.json(newProperty, { status: 201 })
   } catch (error) {
     console.error('Error creating property:', error)
