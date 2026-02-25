@@ -5,6 +5,16 @@ const sql = neon(process.env.DATABASE_URL!)
 // Initialize tables
 export async function initDB() {
   await sql`
+    CREATE TABLE IF NOT EXISTS users (
+      id SERIAL PRIMARY KEY,
+      email TEXT UNIQUE NOT NULL,
+      name TEXT NOT NULL,
+      password_hash TEXT NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `
+
+  await sql`
     CREATE TABLE IF NOT EXISTS properties (
       id SERIAL PRIMARY KEY,
       name TEXT NOT NULL,
@@ -23,6 +33,11 @@ export async function initDB() {
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
+  `
+
+  await sql`
+    ALTER TABLE properties
+    ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id)
   `
 
   await sql`

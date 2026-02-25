@@ -1,14 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server'
 import sql, { initDB } from '@/lib/database'
+import { auth } from '@/lib/auth'
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const session = await auth()
+    const userId = Number(session?.user?.id)
+
+    if (!Number.isInteger(userId)) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     await initDB()
     const { id } = await params
-    const properties = await sql`SELECT * FROM properties WHERE id = ${id}`
+    const properties = await sql`
+      SELECT * FROM properties
+      WHERE id = ${id} AND user_id = ${userId}
+    `
     
     if (properties.length === 0) {
       return NextResponse.json(
@@ -38,6 +49,13 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const session = await auth()
+    const userId = Number(session?.user?.id)
+
+    if (!Number.isInteger(userId)) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     await initDB()
     const { id } = await params
     const data = await request.json()
@@ -50,7 +68,7 @@ export async function PUT(
           agent_fees = ${data.agent_fees}, current_value = ${data.current_value},
           cpf_amount = ${data.cpf_amount}, mortgage_amount = ${data.mortgage_amount}, 
           mortgage_interest_rate = ${data.mortgage_interest_rate}, mortgage_tenure = ${data.mortgage_tenure}
-      WHERE id = ${id}
+      WHERE id = ${id} AND user_id = ${userId}
       RETURNING *
     `
 
@@ -76,9 +94,20 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const session = await auth()
+    const userId = Number(session?.user?.id)
+
+    if (!Number.isInteger(userId)) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     await initDB()
     const { id } = await params
-    const result = await sql`DELETE FROM properties WHERE id = ${id} RETURNING id`
+    const result = await sql`
+      DELETE FROM properties
+      WHERE id = ${id} AND user_id = ${userId}
+      RETURNING id
+    `
 
     if (result.length === 0) {
       return NextResponse.json(

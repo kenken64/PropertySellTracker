@@ -3,7 +3,9 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useState } from "react"
-import { Building2, Calculator, Home, Menu, Plus, X } from "lucide-react"
+import { signOut, useSession } from "next-auth/react"
+import { Building2, Calculator, Home, LogOut, Menu, Plus, UserCircle2, X } from "lucide-react"
+
 import { ThemeToggle } from "@/components/theme-toggle"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -17,6 +19,10 @@ const navItems = [
 export function SiteHeader() {
   const pathname = usePathname()
   const [mobileOpen, setMobileOpen] = useState(false)
+  const { data: session } = useSession()
+
+  const isAuthenticated = Boolean(session?.user)
+  const userName = session?.user?.name || session?.user?.email || "User"
 
   return (
     <header className="sticky top-0 z-50 border-b border-border/70 bg-background/80 backdrop-blur-xl">
@@ -52,6 +58,25 @@ export function SiteHeader() {
         </nav>
 
         <div className="flex items-center gap-2">
+          {isAuthenticated ? (
+            <>
+              <div className="hidden items-center gap-2 rounded-full border border-border/70 bg-card/70 px-3 py-1.5 text-sm md:inline-flex">
+                <UserCircle2 className="h-4 w-4 text-muted-foreground" />
+                <span className="max-w-44 truncate font-medium">{userName}</span>
+              </div>
+
+              <Button
+                variant="outline"
+                size="sm"
+                className="hidden md:inline-flex"
+                onClick={() => signOut({ callbackUrl: "/login" })}
+              >
+                <LogOut className="mr-2 h-4 w-4" />
+                Logout
+              </Button>
+            </>
+          ) : null}
+
           <ThemeToggle />
           <Button
             variant="outline"
@@ -90,6 +115,23 @@ export function SiteHeader() {
                 </Link>
               )
             })}
+
+            {isAuthenticated ? (
+              <div className="mt-2 rounded-xl border border-border/70 bg-card/70 p-3">
+                <p className="truncate text-sm font-medium">{userName}</p>
+                <Button
+                  variant="outline"
+                  className="mt-2 w-full"
+                  onClick={() => {
+                    setMobileOpen(false)
+                    signOut({ callbackUrl: "/login" })
+                  }}
+                >
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Logout
+                </Button>
+              </div>
+            ) : null}
           </div>
         </nav>
       )}
