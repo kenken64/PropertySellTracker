@@ -1,5 +1,6 @@
 "use client"
 
+import * as React from "react"
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -40,7 +41,8 @@ interface Property {
   transactions: any[]
 }
 
-export default function PropertyDetail({ params }: { params: { id: string } }) {
+export default function PropertyDetail({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = React.use(params)
   const [property, setProperty] = useState<Property | null>(null)
   const [loading, setLoading] = useState(true)
   const [currentValue, setCurrentValue] = useState('')
@@ -49,11 +51,11 @@ export default function PropertyDetail({ params }: { params: { id: string } }) {
 
   useEffect(() => {
     fetchProperty()
-  }, [params.id])
+  }, [id])
 
   const fetchProperty = async () => {
     try {
-      const response = await fetch(`/api/properties/${params.id}`)
+      const response = await fetch(`/api/properties/${id}`)
       if (response.ok) {
         const data = await response.json()
         setProperty(data)
@@ -444,7 +446,7 @@ export default function PropertyDetail({ params }: { params: { id: string } }) {
                   <XAxis dataKey="date" />
                   <YAxis tickFormatter={(value) => `$${(value / 1000).toFixed(0)}k`} />
                   <Tooltip 
-                    formatter={(value: number) => [formatCurrency(value), 'Value']}
+                    formatter={(value) => [formatCurrency(value as number), "Value"]}
                     labelFormatter={(label) => `Year: ${label}`}
                   />
                   <Legend />

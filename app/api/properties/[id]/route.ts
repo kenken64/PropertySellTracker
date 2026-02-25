@@ -3,10 +3,11 @@ import db from '@/lib/database'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const property = db.prepare('SELECT * FROM properties WHERE id = ?').get(params.id)
+    const { id } = await params
+    const property = db.prepare('SELECT * FROM properties WHERE id = ?').get(id)
     
     if (!property) {
       return NextResponse.json(
@@ -20,7 +21,7 @@ export async function GET(
       SELECT * FROM transactions 
       WHERE property_id = ? 
       ORDER BY date DESC
-    `).all(params.id)
+    `).all(id)
 
     return NextResponse.json({ ...property, transactions })
   } catch (error) {
@@ -34,9 +35,10 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const data = await request.json()
     
     const stmt = db.prepare(`
@@ -61,7 +63,7 @@ export async function PUT(
       data.mortgage_amount,
       data.mortgage_interest_rate,
       data.mortgage_tenure,
-      params.id
+      id
     )
 
     if (result.changes === 0) {
@@ -71,7 +73,7 @@ export async function PUT(
       )
     }
 
-    const updatedProperty = db.prepare('SELECT * FROM properties WHERE id = ?').get(params.id)
+    const updatedProperty = db.prepare('SELECT * FROM properties WHERE id = ?').get(id)
     return NextResponse.json(updatedProperty)
   } catch (error) {
     console.error('Error updating property:', error)
@@ -84,11 +86,12 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const stmt = db.prepare('DELETE FROM properties WHERE id = ?')
-    const result = stmt.run(params.id)
+    const result = stmt.run(id)
 
     if (result.changes === 0) {
       return NextResponse.json(
