@@ -39,28 +39,30 @@ export function SiteHeader() {
           <span className="text-base font-semibold tracking-tight sm:text-lg">PropertySellTracker</span>
         </Link>
 
-        <nav className="hidden items-center gap-2 md:flex">
-          {navItems.map((item) => {
-            const Icon = item.icon
-            const active = pathname === item.href
+        {isAuthenticated && (
+          <nav className="hidden items-center gap-2 md:flex">
+            {navItems.map((item) => {
+              const Icon = item.icon
+              const active = pathname === item.href
 
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={cn(
-                  "inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-colors",
-                  active
-                    ? "bg-primary text-primary-foreground shadow"
-                    : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-                )}
-              >
-                <Icon className="h-4 w-4" />
-                {tNav(item.labelKey)}
-              </Link>
-            )
-          })}
-        </nav>
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={cn(
+                    "inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-colors",
+                    active
+                      ? "bg-primary text-primary-foreground shadow"
+                      : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                  )}
+                >
+                  <Icon className="h-4 w-4" />
+                  {tNav(item.labelKey)}
+                </Link>
+              )
+            })}
+          </nav>
+        )}
 
         <div className="flex items-center gap-2">
           {isAuthenticated ? (
@@ -106,7 +108,7 @@ export function SiteHeader() {
               <LanguageSwitcher />
             </div>
 
-            {navItems.map((item) => {
+            {isAuthenticated && navItems.map((item) => {
               const Icon = item.icon
               const active = pathname === item.href
 
