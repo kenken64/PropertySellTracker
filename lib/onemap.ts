@@ -4,6 +4,13 @@
 let cachedToken: { token: string; expiry: number } | null = null
 
 async function getOneMapToken(): Promise<string | null> {
+  // Option 1: Direct token from env (simplest)
+  const directToken = process.env.ONEMAP_TOKEN
+  if (directToken) {
+    return directToken
+  }
+
+  // Option 2: Auto-fetch token using credentials
   const email = process.env.ONEMAP_EMAIL
   const password = process.env.ONEMAP_PASSWORD
 
