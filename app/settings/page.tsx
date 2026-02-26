@@ -157,13 +157,17 @@ export default function SettingsPage() {
               {errors.telegram_chat_id ? <p className="mt-1 text-sm text-red-500">{errors.telegram_chat_id[0]}</p> : null}
             </div>
 
-            <div className="flex items-center justify-between rounded-xl border border-border/70 p-3">
-              <Label htmlFor="alerts_enabled" className="flex-1 cursor-pointer space-y-0.5">
-                <p className="text-sm font-medium">{t("enableAlerts")}</p>
-                <p className="text-xs font-normal text-muted-foreground">{t("enableAlertsDesc")}</p>
-              </Label>
-              <Switch id="alerts_enabled" checked={alertsEnabled} onCheckedChange={(checked) => setAlertsEnabled(checked)} />
-            </div>
+            <button
+              type="button"
+              className="flex w-full items-center justify-between rounded-xl border border-border/70 p-3 text-left"
+              onClick={() => setAlertsEnabled(!alertsEnabled)}
+            >
+              <div className="flex-1 space-y-0.5">
+                <span className="block text-sm font-medium">{t("enableAlerts")}</span>
+                <span className="block text-xs text-muted-foreground">{t("enableAlertsDesc")}</span>
+              </div>
+              <Switch checked={alertsEnabled} onCheckedChange={setAlertsEnabled} tabIndex={-1} />
+            </button>
 
             <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
               <Button type="button" variant="outline" onClick={sendTestMessage} disabled={testing} className="w-full sm:w-auto">
