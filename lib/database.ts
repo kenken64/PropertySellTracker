@@ -46,6 +46,16 @@ export async function initDB() {
   `
 
   await sql`
+    ALTER TABLE properties
+    ADD COLUMN IF NOT EXISTS target_profit_percentage REAL DEFAULT 0
+  `
+
+  await sql`
+    ALTER TABLE properties
+    ADD COLUMN IF NOT EXISTS target_profit_alert_sent BOOLEAN DEFAULT false
+  `
+
+  await sql`
     CREATE TABLE IF NOT EXISTS transactions (
       id SERIAL PRIMARY KEY,
       property_id INTEGER NOT NULL REFERENCES properties(id) ON DELETE CASCADE,
@@ -62,6 +72,19 @@ export async function initDB() {
       id SERIAL PRIMARY KEY,
       key TEXT UNIQUE NOT NULL,
       value TEXT NOT NULL
+    )
+  `
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS user_settings (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER REFERENCES users(id),
+      telegram_bot_token TEXT,
+      telegram_chat_id TEXT,
+      alerts_enabled BOOLEAN DEFAULT true,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(user_id)
     )
   `
 

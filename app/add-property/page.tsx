@@ -29,6 +29,7 @@ export default function AddProperty() {
     mortgage_interest_rate: "",
     mortgage_tenure: "",
     monthly_rental: "",
+    target_profit_percentage: "",
   })
 
   const handleInputChange = (name: string, value: string) => {
@@ -75,6 +76,7 @@ export default function AddProperty() {
           mortgage_interest_rate: parseFloat(formData.mortgage_interest_rate) || 0,
           mortgage_tenure: parseInt(formData.mortgage_tenure) || 0,
           monthly_rental: parseFloat(formData.monthly_rental) || 0,
+          target_profit_percentage: parseFloat(formData.target_profit_percentage) || 0,
         }),
       })
 
@@ -256,6 +258,17 @@ export default function AddProperty() {
             <div className="space-y-2">
               <Label htmlFor="monthly_rental">Monthly Rental Income (SGD)</Label>
               <Input id="monthly_rental" type="number" value={formData.monthly_rental} onChange={(e) => handleInputChange("monthly_rental", e.target.value)} placeholder="0" />
+            </div>
+            <div className="space-y-2 lg:col-span-2">
+              <Label htmlFor="target_profit_percentage">Target Profit Alert (%)</Label>
+              <Input
+                id="target_profit_percentage"
+                type="number"
+                step="0.01"
+                value={formData.target_profit_percentage}
+                onChange={(e) => handleInputChange("target_profit_percentage", e.target.value)}
+                placeholder="0"
+              />
             </div>
           </CardContent>
         </Card>

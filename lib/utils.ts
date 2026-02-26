@@ -104,6 +104,14 @@ export function getSSDCountdown(purchaseDate: string): {
   }
 }
 
+export function getSSDFreeDate(purchaseDate: string): Date {
+  return addMonths(parseISO(purchaseDate), 36)
+}
+
+export function getDaysToSSDFree(purchaseDate: string): number {
+  return differenceInDays(getSSDFreeDate(purchaseDate), new Date())
+}
+
 // Calculate mortgage interest paid to date
 export function calculateMortgageInterestPaid(
   loanAmount: number,

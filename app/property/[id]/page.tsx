@@ -46,6 +46,8 @@ interface Property {
   mortgage_tenure: number
   cpf_amount: number
   monthly_rental: number
+  target_profit_percentage: number
+  target_profit_alert_sent: boolean
   transactions: any[]
 }
 
@@ -55,6 +57,7 @@ export default function PropertyDetail({ params }: { params: Promise<{ id: strin
   const [loading, setLoading] = useState(true)
   const [currentValue, setCurrentValue] = useState("")
   const [monthlyRental, setMonthlyRental] = useState("")
+  const [targetProfitPercentage, setTargetProfitPercentage] = useState("")
   const [updating, setUpdating] = useState(false)
   const [appreciationRate, setAppreciationRate] = useState(3)
   const router = useRouter()
@@ -71,6 +74,7 @@ export default function PropertyDetail({ params }: { params: Promise<{ id: strin
         setProperty(data)
         setCurrentValue(data.current_value?.toString() || data.purchase_price.toString())
         setMonthlyRental((data.monthly_rental || 0).toString())
+        setTargetProfitPercentage((data.target_profit_percentage || 0).toString())
       } else if (response.status === 404) {
         router.push("/")
       }
@@ -95,6 +99,7 @@ export default function PropertyDetail({ params }: { params: Promise<{ id: strin
           ...property,
           current_value: parseFloat(currentValue),
           monthly_rental: parseFloat(monthlyRental) || 0,
+          target_profit_percentage: parseFloat(targetProfitPercentage) || 0,
         }),
       })
 
@@ -122,6 +127,10 @@ export default function PropertyDetail({ params }: { params: Promise<{ id: strin
   const roi = calculateROI(property)
   const annualizedReturn = calculateAnnualizedReturn(property)
   const breakEvenPrice = calculateBreakEvenPrice(property)
+  const currentProfitPercentage = totalCost > 0 ? (netProfit / totalCost) * 100 : 0
+  const targetProfit = Number(property.target_profit_percentage || 0)
+  const hasTarget = targetProfit > 0
+  const targetReached = hasTarget && currentProfitPercentage >= targetProfit
   const ssdInfo = getSSDCountdown(property.purchase_date)
   const salePrice = property.current_value || property.purchase_price
   const ssdAmount = calculateSSD(salePrice, property.purchase_date)
@@ -221,8 +230,16 @@ export default function PropertyDetail({ params }: { params: Promise<{ id: strin
               <Input type="number" value={currentValue} onChange={(e) => setCurrentValue(e.target.value)} placeholder="Update value" className="h-9 text-xs" />
               <Input type="number" value={monthlyRental} onChange={(e) => setMonthlyRental(e.target.value)} placeholder="Monthly rental" className="h-9 text-xs" />
             </div>
+            <Input
+              type="number"
+              step="0.01"
+              value={targetProfitPercentage}
+              onChange={(e) => setTargetProfitPercentage(e.target.value)}
+              placeholder="Target profit %"
+              className="h-9 text-xs"
+            />
             <Button size="sm" onClick={updatePropertySnapshot} disabled={updating} className="h-9 w-full">
-              {updating ? "Updating..." : "Update Value + Rental"}
+              {updating ? "Updating..." : "Update Value + Rental + Target"}
             </Button>
           </CardContent>
         </Card>
@@ -359,6 +376,37 @@ export default function PropertyDetail({ params }: { params: Promise<{ id: strin
                 <div className="flex justify-between text-base font-bold">
                   <span>Total Cost</span>
                   <span>{formatCurrency(totalCost)}</span>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Target Profit Alert</CardTitle>
+                <CardDescription>Telegram alert is sent once when your target is reached.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Current Profit</span>
+                  <span className={`font-semibold ${currentProfitPercentage >= 0 ? "text-emerald-600" : "text-red-600"}`}>
+                    {formatPercent(currentProfitPercentage)}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Target</span>
+                  <span className="font-semibold">{hasTarget ? formatPercent(targetProfit) : "Not set"}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Status</span>
+                  <span className="font-semibold">
+                    {!hasTarget
+                      ? "No target configured"
+                      : targetReached
+                        ? "Target reached"
+                        : property.target_profit_alert_sent
+                          ? "Alert sent"
+                          : "Monitoring"}
+                  </span>
                 </div>
               </CardContent>
             </Card>

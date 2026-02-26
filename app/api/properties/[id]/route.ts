@@ -68,7 +68,12 @@ export async function PUT(
           agent_fees = ${data.agent_fees}, current_value = ${data.current_value},
           cpf_amount = ${data.cpf_amount}, mortgage_amount = ${data.mortgage_amount}, 
           mortgage_interest_rate = ${data.mortgage_interest_rate}, mortgage_tenure = ${data.mortgage_tenure},
-          monthly_rental = ${data.monthly_rental || 0}
+          monthly_rental = ${data.monthly_rental || 0},
+          target_profit_percentage = ${data.target_profit_percentage || 0},
+          target_profit_alert_sent = CASE
+            WHEN ${data.target_profit_percentage || 0} <> target_profit_percentage THEN false
+            ELSE target_profit_alert_sent
+          END
       WHERE id = ${id} AND user_id = ${userId}
       RETURNING *
     `
