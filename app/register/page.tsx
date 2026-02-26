@@ -4,16 +4,20 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { FormEvent, useState } from "react"
 import { signIn } from "next-auth/react"
+import { useTranslations } from "next-intl"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { PasswordInput } from "@/components/ui/password-input"
 import { Label } from "@/components/ui/label"
-import { registerSchema } from "@/lib/validations"
+import { getRegisterSchema } from "@/lib/validations"
 
 export default function RegisterPage() {
   const router = useRouter()
+  const t = useTranslations("Auth")
+  const tValidation = useTranslations("Validation")
+  const registerSchema = getRegisterSchema((key) => tValidation(key))
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -39,7 +43,7 @@ export default function RegisterPage() {
     setErrors({})
 
     if (parsed.data.password !== confirmPassword) {
-      setConfirmPasswordError("Passwords do not match")
+      setConfirmPasswordError(t("passwordMismatch"))
       return
     }
 
@@ -58,9 +62,9 @@ export default function RegisterPage() {
     })
 
     if (!registerResponse.ok) {
-      const result = await registerResponse.json().catch(() => ({ error: "Registration failed" }))
+      const result = await registerResponse.json().catch(() => ({ error: t("registrationFailed") }))
       setIsLoading(false)
-      setError(result.error || "Registration failed")
+      setError(result.error || t("registrationFailed"))
       return
     }
 
@@ -73,7 +77,7 @@ export default function RegisterPage() {
     setIsLoading(false)
 
     if (signInResult?.error) {
-      setError("Account created, but auto-login failed. Please sign in.")
+      setError(t("autoLoginFailed"))
       router.push("/login")
       return
     }
@@ -86,69 +90,47 @@ export default function RegisterPage() {
     <div className="mx-auto flex w-full max-w-md items-center py-8 sm:py-12">
       <Card className="w-full">
         <CardHeader>
-          <CardTitle>Create account</CardTitle>
-          <CardDescription>Start tracking your properties with secure access.</CardDescription>
+          <CardTitle>{t("registerTitle")}</CardTitle>
+          <CardDescription>{t("registerDesc")}</CardDescription>
         </CardHeader>
 
         <CardContent>
           <form className="space-y-4" onSubmit={onSubmit} noValidate>
             <div className="space-y-2">
-              <Label htmlFor="name">Name</Label>
-              <Input
-                id="name"
-                type="text"
-                autoComplete="name"
-                value={name}
-                onChange={(event) => setName(event.target.value)}
-              />
+              <Label htmlFor="name">{t("name")}</Label>
+              <Input id="name" type="text" autoComplete="name" value={name} onChange={(event) => setName(event.target.value)} />
               {errors.name ? <p className="mt-1 text-sm text-red-500">{errors.name[0]}</p> : null}
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                autoComplete="email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-              />
+              <Label htmlFor="email">{t("email")}</Label>
+              <Input id="email" type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} />
               {errors.email ? <p className="mt-1 text-sm text-red-500">{errors.email[0]}</p> : null}
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <PasswordInput
-                id="password"
-                autoComplete="new-password"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-              />
+              <Label htmlFor="password">{t("password")}</Label>
+              <PasswordInput id="password" autoComplete="new-password" value={password} onChange={(event) => setPassword(event.target.value)} />
               {errors.password ? <p className="mt-1 text-sm text-red-500">{errors.password[0]}</p> : null}
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="confirm-password">Confirm password</Label>
-              <PasswordInput
-                id="confirm-password"
-                autoComplete="new-password"
-                value={confirmPassword}
-                onChange={(event) => setConfirmPassword(event.target.value)}
-              />
+              <Label htmlFor="confirm-password">{t("confirmPassword")}</Label>
+              <PasswordInput id="confirm-password" autoComplete="new-password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} />
               {confirmPasswordError ? <p className="mt-1 text-sm text-red-500">{confirmPasswordError}</p> : null}
             </div>
 
             {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
             <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? "Creating account..." : "Create account"}
+              {isLoading ? t("creatingAccount") : t("createAccount")}
             </Button>
           </form>
 
           <p className="mt-5 text-center text-sm text-muted-foreground">
-            Already have an account?{" "}
+            {t("alreadyHaveAccount")} {" "}
             <Link href="/login" className="font-medium text-primary hover:underline">
-              Sign in
+              {t("signIn")}
             </Link>
           </p>
         </CardContent>

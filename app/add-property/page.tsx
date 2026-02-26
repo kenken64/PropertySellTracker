@@ -1,19 +1,25 @@
 "use client"
 
 import { FormEvent, useState } from "react"
+import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { useTranslations } from "next-intl"
+import { ArrowLeft, Calculator } from "lucide-react"
+
 import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ArrowLeft, Calculator } from "lucide-react"
-import Link from "next/link"
 import { calculateBSD } from "@/lib/utils"
-import { createPropertySchema } from "@/lib/validations"
+import { getCreatePropertySchema } from "@/lib/validations"
 
 export default function AddProperty() {
   const router = useRouter()
+  const t = useTranslations("AddProperty")
+  const tNav = useTranslations("Navigation")
+  const tCommon = useTranslations("Common")
+  const tValidation = useTranslations("Validation")
   const [loading, setLoading] = useState(false)
   const [errors, setErrors] = useState<Record<string, string[]>>({})
   const [formData, setFormData] = useState({
@@ -33,6 +39,8 @@ export default function AddProperty() {
     monthly_rental: "",
     target_profit_percentage: "",
   })
+
+  const createPropertySchema = getCreatePropertySchema((key) => tValidation(key))
 
   const handleInputChange = (name: string, value: string) => {
     setFormData((prev) => ({
@@ -72,10 +80,12 @@ export default function AddProperty() {
       monthly_rental: parseFloat(formData.monthly_rental) || 0,
       target_profit_percentage: parseFloat(formData.target_profit_percentage) || 0,
     })
+
     if (!parsed.success) {
       setErrors(parsed.error.flatten().fieldErrors)
       return
     }
+
     setErrors({})
     setLoading(true)
 
@@ -92,11 +102,11 @@ export default function AddProperty() {
         router.push("/")
       } else {
         const error = await response.json()
-        alert("Error: " + error.message)
+        alert(t("errorPrefix", { message: error.message }))
       }
     } catch (error) {
       console.error("Error adding property:", error)
-      alert("An error occurred while adding the property")
+      alert(t("addPropertyError"))
     } finally {
       setLoading(false)
     }
@@ -125,8 +135,8 @@ export default function AddProperty() {
             </Link>
           </Button>
           <div className="space-y-1">
-            <h1 className="text-2xl font-bold tracking-tight sm:text-4xl">Add Property</h1>
-            <p className="text-sm text-muted-foreground sm:text-base">Track a new Singapore property investment with complete financial details.</p>
+            <h1 className="text-2xl font-bold tracking-tight sm:text-4xl">{t("title")}</h1>
+            <p className="text-sm text-muted-foreground sm:text-base">{t("subtitle")}</p>
           </div>
         </div>
       </section>
@@ -134,26 +144,26 @@ export default function AddProperty() {
       <form onSubmit={handleSubmit} className="space-y-5 sm:space-y-6" noValidate>
         <Card>
           <CardHeader>
-            <CardTitle>Basic Information</CardTitle>
-            <CardDescription>Essential details about the property.</CardDescription>
+            <CardTitle>{t("basicInformation")}</CardTitle>
+            <CardDescription>{t("basicInformationDesc")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="name">Property Name</Label>
-                <Input id="name" value={formData.name} onChange={(e) => handleInputChange("name", e.target.value)} placeholder="e.g., My HDB Flat" />
+                <Label htmlFor="name">{t("propertyName")}</Label>
+                <Input id="name" value={formData.name} onChange={(e) => handleInputChange("name", e.target.value)} placeholder={t("propertyNamePlaceholder")} />
                 {errors.name ? <p className="mt-1 text-sm text-red-500">{errors.name[0]}</p> : null}
               </div>
               <div className="space-y-2">
-                <Label htmlFor="type">Property Type</Label>
+                <Label htmlFor="type">{t("propertyType")}</Label>
                 <Select value={formData.type} onValueChange={(value) => handleInputChange("type", value)}>
                   <SelectTrigger id="type">
-                    <SelectValue placeholder="Select property type" />
+                    <SelectValue placeholder={t("selectPropertyType")} />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="HDB">HDB</SelectItem>
-                    <SelectItem value="Condo">Condominium</SelectItem>
-                    <SelectItem value="Landed">Landed Property</SelectItem>
+                    <SelectItem value="Condo">{t("condominium")}</SelectItem>
+                    <SelectItem value="Landed">{t("landedProperty")}</SelectItem>
                   </SelectContent>
                 </Select>
                 {errors.type ? <p className="mt-1 text-sm text-red-500">{errors.type[0]}</p> : null}
@@ -161,8 +171,8 @@ export default function AddProperty() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="address">Address</Label>
-              <Input id="address" value={formData.address} onChange={(e) => handleInputChange("address", e.target.value)} placeholder="Full property address" />
+              <Label htmlFor="address">{t("address")}</Label>
+              <Input id="address" value={formData.address} onChange={(e) => handleInputChange("address", e.target.value)} placeholder={t("addressPlaceholder")} />
               {errors.address ? <p className="mt-1 text-sm text-red-500">{errors.address[0]}</p> : null}
             </div>
           </CardContent>
@@ -170,13 +180,13 @@ export default function AddProperty() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Purchase Details</CardTitle>
-            <CardDescription>Information about your acquisition cost and timeline.</CardDescription>
+            <CardTitle>{t("purchaseDetails")}</CardTitle>
+            <CardDescription>{t("purchaseDetailsDesc")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="purchase_price">Purchase Price (SGD)</Label>
+                <Label htmlFor="purchase_price">{t("purchasePrice")}</Label>
                 <Input
                   id="purchase_price"
                   type="number"
@@ -187,7 +197,7 @@ export default function AddProperty() {
                 {errors.purchase_price ? <p className="mt-1 text-sm text-red-500">{errors.purchase_price[0]}</p> : null}
               </div>
               <div className="space-y-2">
-                <Label htmlFor="purchase_date">Purchase Date</Label>
+                <Label htmlFor="purchase_date">{t("purchaseDate")}</Label>
                 <Input id="purchase_date" type="date" value={formData.purchase_date} onChange={(e) => handleInputChange("purchase_date", e.target.value)} />
                 {errors.purchase_date ? <p className="mt-1 text-sm text-red-500">{errors.purchase_date[0]}</p> : null}
               </div>
@@ -195,10 +205,10 @@ export default function AddProperty() {
 
             <div className="space-y-2">
               <div className="flex flex-col items-start justify-between gap-2 sm:flex-row sm:items-center">
-                <Label htmlFor="stamp_duty">Buyer&apos;s Stamp Duty (BSD)</Label>
+                <Label htmlFor="stamp_duty">{t("buyersStampDuty")}</Label>
                 <Button type="button" variant="outline" size="sm" onClick={calculateStampDuty} disabled={!formData.purchase_price}>
                   <Calculator className="mr-2 h-4 w-4" />
-                  Calculate
+                  {t("calculate")}
                 </Button>
               </div>
               <Input id="stamp_duty" type="number" value={formData.stamp_duty} onChange={(e) => handleInputChange("stamp_duty", e.target.value)} placeholder="0" />
@@ -209,23 +219,23 @@ export default function AddProperty() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Additional Costs</CardTitle>
-            <CardDescription>All secondary costs tied to this property.</CardDescription>
+            <CardTitle>{t("additionalCosts")}</CardTitle>
+            <CardDescription>{t("additionalCostsDesc")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
               <div className="space-y-2">
-                <Label htmlFor="renovation_cost">Renovation Cost (SGD)</Label>
+                <Label htmlFor="renovation_cost">{t("renovationCost")}</Label>
                 <Input id="renovation_cost" type="number" value={formData.renovation_cost} onChange={(e) => handleInputChange("renovation_cost", e.target.value)} placeholder="0" />
                 {errors.renovation_cost ? <p className="mt-1 text-sm text-red-500">{errors.renovation_cost[0]}</p> : null}
               </div>
               <div className="space-y-2">
-                <Label htmlFor="agent_fees">Agent Fees (SGD)</Label>
+                <Label htmlFor="agent_fees">{t("agentFees")}</Label>
                 <Input id="agent_fees" type="number" value={formData.agent_fees} onChange={(e) => handleInputChange("agent_fees", e.target.value)} placeholder="0" />
                 {errors.agent_fees ? <p className="mt-1 text-sm text-red-500">{errors.agent_fees[0]}</p> : null}
               </div>
               <div className="space-y-2 lg:col-span-1">
-                <Label htmlFor="cpf_amount">CPF Amount Used (SGD)</Label>
+                <Label htmlFor="cpf_amount">{t("cpfAmountUsed")}</Label>
                 <Input id="cpf_amount" type="number" value={formData.cpf_amount} onChange={(e) => handleInputChange("cpf_amount", e.target.value)} placeholder="0" />
                 {errors.cpf_amount ? <p className="mt-1 text-sm text-red-500">{errors.cpf_amount[0]}</p> : null}
               </div>
@@ -235,17 +245,17 @@ export default function AddProperty() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Mortgage Details</CardTitle>
-            <CardDescription>Loan details for financing analysis.</CardDescription>
+            <CardTitle>{t("mortgageDetails")}</CardTitle>
+            <CardDescription>{t("mortgageDetailsDesc")}</CardDescription>
           </CardHeader>
           <CardContent className="grid grid-cols-1 gap-4 lg:grid-cols-3">
             <div className="space-y-2">
-              <Label htmlFor="mortgage_amount">Loan Amount (SGD)</Label>
+              <Label htmlFor="mortgage_amount">{t("loanAmount")}</Label>
               <Input id="mortgage_amount" type="number" value={formData.mortgage_amount} onChange={(e) => handleInputChange("mortgage_amount", e.target.value)} placeholder="0" />
               {errors.mortgage_amount ? <p className="mt-1 text-sm text-red-500">{errors.mortgage_amount[0]}</p> : null}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="mortgage_interest_rate">Interest Rate (%)</Label>
+              <Label htmlFor="mortgage_interest_rate">{t("interestRate")}</Label>
               <Input
                 id="mortgage_interest_rate"
                 type="number"
@@ -257,7 +267,7 @@ export default function AddProperty() {
               {errors.mortgage_interest_rate ? <p className="mt-1 text-sm text-red-500">{errors.mortgage_interest_rate[0]}</p> : null}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="mortgage_tenure">Tenure (Years)</Label>
+              <Label htmlFor="mortgage_tenure">{t("tenure")}</Label>
               <Input id="mortgage_tenure" type="number" value={formData.mortgage_tenure} onChange={(e) => handleInputChange("mortgage_tenure", e.target.value)} placeholder="0" />
               {errors.mortgage_tenure ? <p className="mt-1 text-sm text-red-500">{errors.mortgage_tenure[0]}</p> : null}
             </div>
@@ -266,22 +276,22 @@ export default function AddProperty() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Current Valuation</CardTitle>
-            <CardDescription>Estimated current market value of the property.</CardDescription>
+            <CardTitle>{t("currentValuation")}</CardTitle>
+            <CardDescription>{t("currentValuationDesc")}</CardDescription>
           </CardHeader>
           <CardContent className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="current_value">Current Market Value (SGD)</Label>
+              <Label htmlFor="current_value">{t("currentMarketValue")}</Label>
               <Input id="current_value" type="number" value={formData.current_value} onChange={(e) => handleInputChange("current_value", e.target.value)} placeholder="0" />
               {errors.current_value ? <p className="mt-1 text-sm text-red-500">{errors.current_value[0]}</p> : null}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="monthly_rental">Monthly Rental Income (SGD)</Label>
+              <Label htmlFor="monthly_rental">{t("monthlyRentalIncome")}</Label>
               <Input id="monthly_rental" type="number" value={formData.monthly_rental} onChange={(e) => handleInputChange("monthly_rental", e.target.value)} placeholder="0" />
               {errors.monthly_rental ? <p className="mt-1 text-sm text-red-500">{errors.monthly_rental[0]}</p> : null}
             </div>
             <div className="space-y-2 lg:col-span-2">
-              <Label htmlFor="target_profit_percentage">Target Profit Alert (%)</Label>
+              <Label htmlFor="target_profit_percentage">{t("targetProfitAlert")}</Label>
               <Input
                 id="target_profit_percentage"
                 type="number"
@@ -297,10 +307,10 @@ export default function AddProperty() {
 
         <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
           <Button type="button" variant="outline" asChild className="w-full sm:w-auto">
-            <Link href="/">Cancel</Link>
+            <Link href="/">{tCommon("cancel")}</Link>
           </Button>
           <Button type="submit" disabled={loading} className="w-full sm:w-auto">
-            {loading ? "Adding Property..." : "Add Property"}
+            {loading ? t("addingProperty") : tNav("addProperty")}
           </Button>
         </div>
       </form>

@@ -4,24 +4,27 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useState } from "react"
 import { signOut, useSession } from "next-auth/react"
+import { useTranslations } from "next-intl"
 import { BarChart3, Building2, Calculator, Home, LogOut, Menu, Plus, Settings, UserCircle2, X } from "lucide-react"
 
+import { LanguageSwitcher } from "@/components/language-switcher"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
 const navItems = [
-  { href: "/", label: "Dashboard", icon: Home },
-  { href: "/add-property", label: "Add Property", icon: Plus },
-  { href: "/ssd-calculator", label: "SSD Calculator", icon: Calculator },
-  { href: "/hdb-resale", label: "HDB Resale Data", icon: BarChart3 },
-  { href: "/settings", label: "Settings", icon: Settings },
-]
+  { href: "/", labelKey: "dashboard", icon: Home },
+  { href: "/add-property", labelKey: "addProperty", icon: Plus },
+  { href: "/ssd-calculator", labelKey: "ssdCalculator", icon: Calculator },
+  { href: "/hdb-resale", labelKey: "hdbResaleData", icon: BarChart3 },
+  { href: "/settings", labelKey: "settings", icon: Settings },
+] as const
 
 export function SiteHeader() {
   const pathname = usePathname()
   const [mobileOpen, setMobileOpen] = useState(false)
   const { data: session } = useSession()
+  const tNav = useTranslations("Navigation")
 
   const isAuthenticated = Boolean(session?.user)
   const userName = session?.user?.name || session?.user?.email || "User"
@@ -53,7 +56,7 @@ export function SiteHeader() {
                 )}
               >
                 <Icon className="h-4 w-4" />
-                {item.label}
+                {tNav(item.labelKey)}
               </Link>
             )
           })}
@@ -74,11 +77,14 @@ export function SiteHeader() {
                 onClick={() => signOut({ callbackUrl: "/login" })}
               >
                 <LogOut className="mr-2 h-4 w-4" />
-                Logout
+                {tNav("logout")}
               </Button>
             </>
           ) : null}
 
+          <div className="hidden sm:block">
+            <LanguageSwitcher />
+          </div>
           <ThemeToggle />
           <Button
             variant="outline"
@@ -96,6 +102,10 @@ export function SiteHeader() {
       {mobileOpen && (
         <nav className="border-t border-border/70 bg-background/95 px-4 py-3 md:hidden">
           <div className="mx-auto flex w-full max-w-7xl flex-col gap-2">
+            <div className="mb-1 sm:hidden">
+              <LanguageSwitcher />
+            </div>
+
             {navItems.map((item) => {
               const Icon = item.icon
               const active = pathname === item.href
@@ -113,7 +123,7 @@ export function SiteHeader() {
                   )}
                 >
                   <Icon className="h-4 w-4" />
-                  {item.label}
+                  {tNav(item.labelKey)}
                 </Link>
               )
             })}
@@ -130,7 +140,7 @@ export function SiteHeader() {
                   }}
                 >
                   <LogOut className="mr-2 h-4 w-4" />
-                  Logout
+                  {tNav("logout")}
                 </Button>
               </div>
             ) : null}

@@ -1,6 +1,7 @@
 "use client"
 
 import { useMemo, useState } from "react"
+import { useTranslations } from "next-intl"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -28,6 +29,8 @@ export default function HdbResalePage() {
   const [sortBy, setSortBy] = useState<SortBy>("date_desc")
   const [loading, setLoading] = useState(false)
   const [records, setRecords] = useState<HdbResaleRecord[]>([])
+  const t = useTranslations("HdbResale")
+  const tCommon = useTranslations("Common")
 
   const sortedRecords = useMemo(() => {
     const cloned = [...records]
@@ -59,7 +62,7 @@ export default function HdbResalePage() {
       const data = await response.json()
 
       if (!response.ok) {
-        throw new Error(data?.error || "Failed to load HDB resale records")
+        throw new Error(data?.error || t("loadError"))
       }
 
       setRecords(data.records || [])
@@ -75,26 +78,26 @@ export default function HdbResalePage() {
     <div className="space-y-6 sm:space-y-8">
       <section className="rounded-3xl border border-border/60 bg-card/75 p-5 shadow-sm backdrop-blur sm:p-8">
         <div className="space-y-2">
-          <h1 className="text-2xl font-bold tracking-tight sm:text-4xl">HDB Resale Data</h1>
-          <p className="text-sm text-muted-foreground sm:text-base">Search recent HDB resale transactions by town, flat type, and street.</p>
+          <h1 className="text-2xl font-bold tracking-tight sm:text-4xl">{t("title")}</h1>
+          <p className="text-sm text-muted-foreground sm:text-base">{t("subtitle")}</p>
         </div>
       </section>
 
       <Card>
         <CardHeader>
-          <CardTitle>Search Transactions</CardTitle>
-          <CardDescription>Filters from Singapore open data (data.gov.sg).</CardDescription>
+          <CardTitle>{t("searchTransactions")}</CardTitle>
+          <CardDescription>{t("searchTransactionsDesc")}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
             <div className="space-y-2">
-              <Label htmlFor="town">Town</Label>
+              <Label htmlFor="town">{t("town")}</Label>
               <Select value={town} onValueChange={setTown}>
                 <SelectTrigger id="town">
-                  <SelectValue placeholder="All towns" />
+                  <SelectValue placeholder={t("allTowns")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All towns</SelectItem>
+                  <SelectItem value="all">{t("allTowns")}</SelectItem>
                   {HDB_TOWNS.map((townOption) => (
                     <SelectItem key={townOption} value={townOption}>
                       {townOption}
@@ -105,13 +108,13 @@ export default function HdbResalePage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="flat-type">Flat Type</Label>
+              <Label htmlFor="flat-type">{t("flatType")}</Label>
               <Select value={flatType} onValueChange={setFlatType}>
                 <SelectTrigger id="flat-type">
-                  <SelectValue placeholder="All flat types" />
+                  <SelectValue placeholder={t("allFlatTypes")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All flat types</SelectItem>
+                  <SelectItem value="all">{t("allFlatTypes")}</SelectItem>
                   {HDB_FLAT_TYPES.map((flatTypeOption) => (
                     <SelectItem key={flatTypeOption} value={flatTypeOption}>
                       {flatTypeOption}
@@ -122,53 +125,48 @@ export default function HdbResalePage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="street-name">Street Name</Label>
-              <Input
-                id="street-name"
-                placeholder="e.g. ANG MO KIO AVE 3"
-                value={streetName}
-                onChange={(e) => setStreetName(e.target.value)}
-              />
+              <Label htmlFor="street-name">{t("streetName")}</Label>
+              <Input id="street-name" placeholder={t("streetPlaceholder")} value={streetName} onChange={(e) => setStreetName(e.target.value)} />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="sort-by">Sort By</Label>
+              <Label htmlFor="sort-by">{t("sortBy")}</Label>
               <Select value={sortBy} onValueChange={(value) => setSortBy(value as SortBy)}>
                 <SelectTrigger id="sort-by">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="date_desc">Date: Newest first</SelectItem>
-                  <SelectItem value="date_asc">Date: Oldest first</SelectItem>
-                  <SelectItem value="price_desc">Price: High to low</SelectItem>
-                  <SelectItem value="price_asc">Price: Low to high</SelectItem>
+                  <SelectItem value="date_desc">{t("sortDateNewest")}</SelectItem>
+                  <SelectItem value="date_asc">{t("sortDateOldest")}</SelectItem>
+                  <SelectItem value="price_desc">{t("sortPriceHighLow")}</SelectItem>
+                  <SelectItem value="price_asc">{t("sortPriceLowHigh")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
 
           <Button onClick={handleSearch} disabled={loading} className="w-full md:w-auto">
-            {loading ? "Searching..." : "Search"}
+            {loading ? tCommon("searching") : tCommon("search")}
           </Button>
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle>Results ({sortedRecords.length})</CardTitle>
-          <CardDescription>Showing month, block, street, storey range, floor area, and transacted price.</CardDescription>
+          <CardTitle>{t("results", { count: sortedRecords.length })}</CardTitle>
+          <CardDescription>{t("resultsDesc")}</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[760px] text-sm">
               <thead>
                 <tr className="border-b border-border text-left">
-                  <th className="px-2 py-2 font-semibold">Month</th>
-                  <th className="px-2 py-2 font-semibold">Block</th>
-                  <th className="px-2 py-2 font-semibold">Street Name</th>
-                  <th className="px-2 py-2 font-semibold">Storey Range</th>
-                  <th className="px-2 py-2 font-semibold">Floor Area (sqm)</th>
-                  <th className="px-2 py-2 text-right font-semibold">Resale Price</th>
+                  <th className="px-2 py-2 font-semibold">{t("month")}</th>
+                  <th className="px-2 py-2 font-semibold">{t("block")}</th>
+                  <th className="px-2 py-2 font-semibold">{t("streetName")}</th>
+                  <th className="px-2 py-2 font-semibold">{t("storeyRange")}</th>
+                  <th className="px-2 py-2 font-semibold">{t("floorArea")}</th>
+                  <th className="px-2 py-2 text-right font-semibold">{t("resalePrice")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -186,7 +184,7 @@ export default function HdbResalePage() {
             </table>
           </div>
 
-          {sortedRecords.length === 0 && !loading && <p className="py-8 text-center text-muted-foreground">No records found. Try different filters.</p>}
+          {sortedRecords.length === 0 && !loading && <p className="py-8 text-center text-muted-foreground">{t("noRecords")}</p>}
         </CardContent>
       </Card>
     </div>
