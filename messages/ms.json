@@ -7,7 +7,8 @@
     "settings": "Tetapan",
     "login": "Log Masuk",
     "register": "Daftar",
-    "logout": "Log Keluar"
+    "logout": "Log Keluar",
+    "more": "Lagi"
   },
   "Common": {
     "loading": "Memuatkan...",
