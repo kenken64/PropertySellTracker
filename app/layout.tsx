@@ -5,6 +5,8 @@ import { getLocale, getMessages } from "next-intl/server"
 import { Building2 } from "lucide-react"
 
 import "./globals.css"
+import { Analytics } from "@vercel/analytics/next"
+import { SpeedInsights } from "@vercel/speed-insights/next"
 import { ThemeProvider } from "@/components/theme-provider"
 import { SiteHeader } from "@/components/site-header"
 import { AuthSessionProvider } from "@/components/session-provider"
@@ -47,6 +49,8 @@ export default async function RootLayout({
             </ThemeProvider>
           </AuthSessionProvider>
         </NextIntlClientProvider>
+        <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   )
