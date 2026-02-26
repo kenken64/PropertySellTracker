@@ -102,7 +102,11 @@
     "addingProperty": "正在添加房产...",
     "errorPrefix": "错误：{message}",
     "addPropertyError": "添加房产时发生错误",
-    "postalCode": "邮政编码"
+    "postalCode": "邮政编码",
+    "blockNo": "门牌号",
+    "streetName": "街道名称",
+    "buildingName": "大楼名称",
+    "unitNo": "单元号"
   },
   "PropertyDetail": {
     "loading": "正在加载房产详情...",

@@ -102,7 +102,11 @@
     "addingProperty": "Adding Property...",
     "errorPrefix": "Error: {message}",
     "addPropertyError": "An error occurred while adding the property",
-    "postalCode": "Postal Code"
+    "postalCode": "Postal Code",
+    "blockNo": "Block / House No.",
+    "streetName": "Street Name",
+    "buildingName": "Building Name",
+    "unitNo": "Unit No."
   },
   "PropertyDetail": {
     "loading": "Loading property details...",

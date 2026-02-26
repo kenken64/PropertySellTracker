@@ -1,13 +1,12 @@
 "use client"
 
-import { useState, useCallback, useRef, useEffect, useMemo } from "react"
+import { useState, useCallback, useRef, useEffect } from "react"
 import { Search, MapPin, Loader2 } from "lucide-react"
 import dynamic from "next/dynamic"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { cn } from "@/lib/utils"
 
-// Lazy load map to avoid SSR issues with Leaflet
 const MapPreview = dynamic(() => import("@/components/map-preview"), {
   ssr: false,
   loading: () => (
@@ -17,7 +16,18 @@ const MapPreview = dynamic(() => import("@/components/map-preview"), {
   ),
 })
 
-interface AddressResult {
+export interface SgAddress {
+  postalCode: string
+  blockNo: string
+  streetName: string
+  building: string
+  unitNo: string
+  fullAddress: string
+  latitude?: string
+  longitude?: string
+}
+
+interface ApiResult {
   address: string
   postalCode: string
   blockNo: string
@@ -28,42 +38,45 @@ interface AddressResult {
 }
 
 interface AddressLookupProps {
-  onSelect: (result: { address: string; postalCode: string; latitude?: string; longitude?: string }) => void
-  initialAddress?: string
-  initialPostalCode?: string
-  addressLabel?: string
-  postalCodeLabel?: string
-  addressPlaceholder?: string
-  postalCodePlaceholder?: string
-  addressError?: string
-  postalCodeError?: string
+  onSelect: (result: SgAddress) => void
+  initialValues?: Partial<SgAddress>
+  labels?: {
+    postalCode?: string
+    blockNo?: string
+    streetName?: string
+    building?: string
+    unitNo?: string
+    floor?: string
+  }
+  errors?: {
+    address?: string
+    postalCode?: string
+  }
 }
 
 export function AddressLookup({
   onSelect,
-  initialAddress = "",
-  initialPostalCode = "",
-  addressLabel = "Address",
-  postalCodeLabel = "Postal Code",
-  addressPlaceholder = "Search by postal code or address...",
-  postalCodePlaceholder = "e.g. 560333",
-  addressError,
-  postalCodeError,
+  initialValues = {},
+  labels = {},
+  errors = {},
 }: AddressLookupProps) {
-  const [postalCode, setPostalCode] = useState(initialPostalCode)
-  const [address, setAddress] = useState(initialAddress)
-  const [results, setResults] = useState<AddressResult[]>([])
+  const [postalCode, setPostalCode] = useState(initialValues.postalCode || "")
+  const [blockNo, setBlockNo] = useState(initialValues.blockNo || "")
+  const [streetName, setStreetName] = useState(initialValues.streetName || "")
+  const [building, setBuilding] = useState(initialValues.building || "")
+  const [unitNo, setUnitNo] = useState(initialValues.unitNo || "")
   const [isSearching, setIsSearching] = useState(false)
+  const [results, setResults] = useState<ApiResult[]>([])
   const [showDropdown, setShowDropdown] = useState(false)
   const [noResults, setNoResults] = useState(false)
   const [mapLocation, setMapLocation] = useState<{ lat: number; lng: number; label: string } | null>(null)
+  const [searched, setSearched] = useState(false)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const containerRef = useRef<HTMLDivElement>(null)
+  const dropdownRef = useRef<HTMLDivElement>(null)
 
-  // Close dropdown on outside click
   useEffect(() => {
     function handleClick(e: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
         setShowDropdown(false)
       }
     }
@@ -71,8 +84,38 @@ export function AddressLookup({
     return () => document.removeEventListener("mousedown", handleClick)
   }, [])
 
+  // Build full address string from fields
+  const buildFullAddress = useCallback((block: string, street: string, bldg: string, unit: string, postal: string) => {
+    const parts: string[] = []
+    if (block) parts.push(`Blk ${block}`)
+    if (street) parts.push(street)
+    if (unit) parts.push(`#${unit}`)
+    if (bldg && bldg !== "NIL") parts.push(bldg)
+    if (postal) parts.push(`Singapore ${postal}`)
+    return parts.join(", ")
+  }, [])
+
+  // Notify parent of changes
+  const emitChange = useCallback((overrides: Partial<{ blockNo: string; streetName: string; building: string; unitNo: string; postalCode: string; latitude: string; longitude: string }> = {}) => {
+    const b = overrides.blockNo ?? blockNo
+    const s = overrides.streetName ?? streetName
+    const bldg = overrides.building ?? building
+    const u = overrides.unitNo ?? unitNo
+    const p = overrides.postalCode ?? postalCode
+    onSelect({
+      postalCode: p,
+      blockNo: b,
+      streetName: s,
+      building: bldg,
+      unitNo: u,
+      fullAddress: buildFullAddress(b, s, bldg, u, p),
+      latitude: overrides.latitude,
+      longitude: overrides.longitude,
+    })
+  }, [blockNo, streetName, building, unitNo, postalCode, buildFullAddress, onSelect])
+
   const doSearch = useCallback(async (query: string) => {
-    if (query.length < 2) {
+    if (query.length < 3) {
       setResults([])
       setShowDropdown(false)
       setNoResults(false)
@@ -84,12 +127,11 @@ export function AddressLookup({
     try {
       const res = await fetch(`/api/address/search?q=${encodeURIComponent(query)}`)
       const data = await res.json()
-
       if (data.results && data.results.length > 0) {
         setResults(data.results)
         setShowDropdown(true)
 
-        // Auto-select first result if postal code search
+        // Auto-select if only one result from postal code
         if (/^\d{6}$/.test(query) && data.results.length === 1) {
           selectResult(data.results[0])
         }
@@ -110,24 +152,27 @@ export function AddressLookup({
     const cleaned = value.replace(/\D/g, "").slice(0, 6)
     setPostalCode(cleaned)
     setNoResults(false)
+    setSearched(false)
 
     if (cleaned.length === 6) {
       if (debounceRef.current) clearTimeout(debounceRef.current)
-      debounceRef.current = setTimeout(() => doSearch(cleaned), 300)
+      debounceRef.current = setTimeout(() => {
+        setSearched(true)
+        doSearch(cleaned)
+      }, 300)
     }
   }
 
-  const handleAddressSearch = (value: string) => {
-    setAddress(value)
-    onSelect({ address: value, postalCode })
+  const selectResult = (result: ApiResult) => {
+    const blk = result.blockNo || ""
+    const street = result.roadName || ""
+    const bldg = result.building && result.building !== "NIL" ? result.building : ""
+    const postal = result.postalCode || ""
 
-    if (debounceRef.current) clearTimeout(debounceRef.current)
-    debounceRef.current = setTimeout(() => doSearch(value), 500)
-  }
-
-  const selectResult = (result: AddressResult) => {
-    setAddress(result.address)
-    setPostalCode(result.postalCode)
+    setBlockNo(blk)
+    setStreetName(street)
+    setBuilding(bldg)
+    setPostalCode(postal)
     setShowDropdown(false)
     setResults([])
     setNoResults(false)
@@ -141,20 +186,23 @@ export function AddressLookup({
     }
 
     onSelect({
-      address: result.address,
-      postalCode: result.postalCode,
+      postalCode: postal,
+      blockNo: blk,
+      streetName: street,
+      building: bldg,
+      unitNo,
+      fullAddress: buildFullAddress(blk, street, bldg, unitNo, postal),
       latitude: result.latitude,
       longitude: result.longitude,
     })
   }
 
   return (
-    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-      {/* Left: Form fields */}
-      <div ref={containerRef} className="space-y-4">
-        {/* Postal Code */}
-        <div className="space-y-2">
-          <Label htmlFor="postal_code">{postalCodeLabel}</Label>
+    <div className="space-y-4">
+      {/* Postal code search row */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div ref={dropdownRef} className="relative space-y-2">
+          <Label htmlFor="postal_code">{labels.postalCode || "Postal Code"} <span className="text-red-500">*</span></Label>
           <div className="relative">
             <Input
               id="postal_code"
@@ -164,7 +212,7 @@ export function AddressLookup({
               maxLength={6}
               value={postalCode}
               onChange={(e) => handlePostalCodeChange(e.target.value)}
-              placeholder={postalCodePlaceholder}
+              placeholder="e.g. 560333"
               className="pr-10"
             />
             <div className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
@@ -175,25 +223,12 @@ export function AddressLookup({
               )}
             </div>
           </div>
-          {postalCodeError && <p className="text-sm text-red-500 mt-1">{postalCodeError}</p>}
-          {postalCode.length === 6 && noResults && !isSearching && (
-            <p className="text-xs text-muted-foreground mt-1">
-              No results found. Enter address manually.
+          {errors.postalCode && <p className="text-sm text-red-500 mt-1">{errors.postalCode}</p>}
+          {postalCode.length === 6 && searched && noResults && !isSearching && (
+            <p className="text-xs text-amber-600 mt-1">
+              No results found. Please enter address details manually.
             </p>
           )}
-        </div>
-
-        {/* Address */}
-        <div className="relative space-y-2">
-          <Label htmlFor="address">{addressLabel}</Label>
-          <Input
-            id="address"
-            type="text"
-            value={address}
-            onChange={(e) => handleAddressSearch(e.target.value)}
-            placeholder={addressPlaceholder}
-          />
-          {addressError && <p className="text-sm text-red-500 mt-1">{addressError}</p>}
 
           {/* Dropdown results */}
           {showDropdown && results.length > 0 && (
@@ -213,7 +248,7 @@ export function AddressLookup({
                     <p className="font-medium leading-tight">{result.address}</p>
                     <p className="mt-0.5 text-xs text-muted-foreground">
                       {result.building && result.building !== "NIL" ? `${result.building} · ` : ""}
-                      Postal {result.postalCode}
+                      S({result.postalCode})
                     </p>
                   </div>
                 </button>
@@ -221,16 +256,79 @@ export function AddressLookup({
             </div>
           )}
         </div>
+
+        {/* Unit No */}
+        <div className="space-y-2">
+          <Label htmlFor="unit_no">{labels.unitNo || "Unit No."}</Label>
+          <Input
+            id="unit_no"
+            type="text"
+            value={unitNo}
+            onChange={(e) => {
+              setUnitNo(e.target.value)
+              emitChange({ unitNo: e.target.value })
+            }}
+            placeholder="e.g. 12-345"
+          />
+          <p className="text-xs text-muted-foreground">Floor-Unit (e.g. 12-345)</p>
+        </div>
       </div>
 
-      {/* Right: Map preview */}
-      <div className="h-64 lg:h-auto lg:min-h-[250px] rounded-lg overflow-hidden border border-border">
+      {/* Auto-filled address fields */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="space-y-2">
+          <Label htmlFor="block_no">{labels.blockNo || "Block / House No."}</Label>
+          <Input
+            id="block_no"
+            type="text"
+            value={blockNo}
+            onChange={(e) => {
+              setBlockNo(e.target.value)
+              emitChange({ blockNo: e.target.value })
+            }}
+            placeholder="e.g. 333"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="street_name">{labels.streetName || "Street Name"}</Label>
+          <Input
+            id="street_name"
+            type="text"
+            value={streetName}
+            onChange={(e) => {
+              setStreetName(e.target.value)
+              emitChange({ streetName: e.target.value })
+            }}
+            placeholder="e.g. ANG MO KIO AVENUE 1"
+          />
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="building_name">{labels.building || "Building Name"}</Label>
+        <Input
+          id="building_name"
+          type="text"
+          value={building}
+          onChange={(e) => {
+            setBuilding(e.target.value)
+            emitChange({ building: e.target.value })
+          }}
+          placeholder="e.g. TECK GHEE VIEW"
+        />
+      </div>
+
+      {errors.address && <p className="text-sm text-red-500">{errors.address}</p>}
+
+      {/* Map preview */}
+      <div className="h-64 rounded-lg overflow-hidden border border-border">
         {mapLocation ? (
           <MapPreview lat={mapLocation.lat} lng={mapLocation.lng} label={mapLocation.label} />
         ) : (
           <div className="flex h-full flex-col items-center justify-center gap-2 bg-muted/20 text-muted-foreground">
             <MapPin className="h-8 w-8 opacity-30" />
-            <p className="text-sm">Enter postal code to see location</p>
+            <p className="text-sm">Enter postal code to see location on map</p>
           </div>
         )}
       </div>

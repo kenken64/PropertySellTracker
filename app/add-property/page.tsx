@@ -172,15 +172,19 @@ export default function AddProperty() {
             </div>
 
             <AddressLookup
-              onSelect={({ address, postalCode }) => {
-                setFormData((prev) => ({ ...prev, address: postalCode ? `${address} (S${postalCode})` : address }))
+              onSelect={(sgAddr) => {
+                setFormData((prev) => ({ ...prev, address: sgAddr.fullAddress }))
               }}
-              initialAddress={formData.address}
-              addressLabel={t("address")}
-              postalCodeLabel={t("postalCode") || "Postal Code"}
-              addressPlaceholder={t("addressPlaceholder")}
-              postalCodePlaceholder="e.g. 310333"
-              addressError={errors.address?.[0]}
+              labels={{
+                postalCode: t("postalCode") || "Postal Code",
+                blockNo: t("blockNo") || "Block / House No.",
+                streetName: t("streetName") || "Street Name",
+                building: t("buildingName") || "Building Name",
+                unitNo: t("unitNo") || "Unit No.",
+              }}
+              errors={{
+                address: errors.address?.[0],
+              }}
             />
           </CardContent>
         </Card>

@@ -102,7 +102,11 @@
     "addingProperty": "Sedang menambah hartanah...",
     "errorPrefix": "Ralat: {message}",
     "addPropertyError": "Ralat berlaku semasa menambah hartanah",
-    "postalCode": "Poskod"
+    "postalCode": "Poskod",
+    "blockNo": "No. Blok / Rumah",
+    "streetName": "Nama Jalan",
+    "buildingName": "Nama Bangunan",
+    "unitNo": "No. Unit"
   },
   "PropertyDetail": {
     "loading": "Sedang memuatkan butiran hartanah...",
