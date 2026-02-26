@@ -49,6 +49,12 @@
 
 ---
 
+### Data Integration & Analytics
+- [x] HDB Resale Data page (`/hdb-resale`) with data.gov.sg API
+- [x] MAS Interest Rates dashboard card
+- [x] Rental Yield calculator (gross/net)
+- [x] Sell Now vs Hold analysis tab on property detail
+
 ## 🔨 In Progress
 _(nothing currently)_
 
@@ -57,13 +63,13 @@ _(nothing currently)_
 ## 📋 Planned — Data Sources & Integrations
 
 ### Priority 1 — Easy Wins
-- [ ] **HDB resale data** — Pull from data.gov.sg (free API), show nearby resale prices
-- [ ] **MAS interest rate tracking** — Auto-fetch current rates for mortgage calculations
+- [x] **HDB resale data** — Pull from data.gov.sg (free API), search by town/flat type ✅
+- [x] **MAS interest rate tracking** — Dashboard card with current rates vs mortgage comparison ✅
 - [ ] **SSD-free date reminder** — Telegram notification when property becomes SSD-exempt
 
 ### Priority 2 — High Value
-- [ ] **Sell now vs hold comparison** — Factor in rental yield, mortgage interest, opportunity cost
-- [ ] **Rental yield calculator** — Input rental income, calculate gross/net yield
+- [x] **Sell now vs hold comparison** — Side-by-side analysis with SSD savings, appreciation projections ✅
+- [x] **Rental yield calculator** — Monthly rental input, gross/net yield on property detail ✅
 - [ ] **Target profit alerts** — Set target profit % → alert when market value hits target
 - [ ] **Telegram bot for alerts** — Push notifications for price changes, SSD milestones
 
