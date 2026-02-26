@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { PasswordInput } from "@/components/ui/password-input"
 import { Label } from "@/components/ui/label"
+import { registerSchema } from "@/lib/validations"
 
 export default function RegisterPage() {
   const router = useRouter()
@@ -18,19 +19,27 @@ export default function RegisterPage() {
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const [error, setError] = useState("")
+  const [errors, setErrors] = useState<Record<string, string[]>>({})
+  const [confirmPasswordError, setConfirmPasswordError] = useState("")
   const [isLoading, setIsLoading] = useState(false)
 
   const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setError("")
-
-    if (password !== confirmPassword) {
-      setError("Passwords do not match")
+    setConfirmPasswordError("")
+    const parsed = registerSchema.safeParse({
+      name,
+      email,
+      password,
+    })
+    if (!parsed.success) {
+      setErrors(parsed.error.flatten().fieldErrors)
       return
     }
+    setErrors({})
 
-    if (password.length < 8) {
-      setError("Password must be at least 8 characters")
+    if (parsed.data.password !== confirmPassword) {
+      setConfirmPasswordError("Passwords do not match")
       return
     }
 
@@ -42,9 +51,9 @@ export default function RegisterPage() {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        name,
-        email,
-        password,
+        name: parsed.data.name,
+        email: parsed.data.email,
+        password: parsed.data.password,
       }),
     })
 
@@ -56,8 +65,8 @@ export default function RegisterPage() {
     }
 
     const signInResult = await signIn("credentials", {
-      email,
-      password,
+      email: parsed.data.email,
+      password: parsed.data.password,
       redirect: false,
     })
 
@@ -82,7 +91,7 @@ export default function RegisterPage() {
         </CardHeader>
 
         <CardContent>
-          <form className="space-y-4" onSubmit={onSubmit}>
+          <form className="space-y-4" onSubmit={onSubmit} noValidate>
             <div className="space-y-2">
               <Label htmlFor="name">Name</Label>
               <Input
@@ -91,8 +100,8 @@ export default function RegisterPage() {
                 autoComplete="name"
                 value={name}
                 onChange={(event) => setName(event.target.value)}
-                required
               />
+              {errors.name ? <p className="mt-1 text-sm text-red-500">{errors.name[0]}</p> : null}
             </div>
 
             <div className="space-y-2">
@@ -103,8 +112,8 @@ export default function RegisterPage() {
                 autoComplete="email"
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
-                required
               />
+              {errors.email ? <p className="mt-1 text-sm text-red-500">{errors.email[0]}</p> : null}
             </div>
 
             <div className="space-y-2">
@@ -114,8 +123,8 @@ export default function RegisterPage() {
                 autoComplete="new-password"
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
-                required
               />
+              {errors.password ? <p className="mt-1 text-sm text-red-500">{errors.password[0]}</p> : null}
             </div>
 
             <div className="space-y-2">
@@ -125,8 +134,8 @@ export default function RegisterPage() {
                 autoComplete="new-password"
                 value={confirmPassword}
                 onChange={(event) => setConfirmPassword(event.target.value)}
-                required
               />
+              {confirmPasswordError ? <p className="mt-1 text-sm text-red-500">{confirmPasswordError}</p> : null}
             </div>
 
             {error ? <p className="text-sm text-destructive">{error}</p> : null}

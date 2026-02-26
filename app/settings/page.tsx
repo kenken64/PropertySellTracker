@@ -1,11 +1,12 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { FormEvent, useEffect, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
+import { telegramSettingsSchema } from "@/lib/validations"
 
 export default function SettingsPage() {
   const [telegramBotToken, setTelegramBotToken] = useState("")
@@ -14,6 +15,7 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [testing, setTesting] = useState(false)
+  const [errors, setErrors] = useState<Record<string, string[]>>({})
 
   useEffect(() => {
     fetchSettings()
@@ -35,7 +37,18 @@ export default function SettingsPage() {
     }
   }
 
-  const saveSettings = async () => {
+  const saveSettings = async (e: FormEvent) => {
+    e.preventDefault()
+    const parsed = telegramSettingsSchema.safeParse({
+      telegram_bot_token: telegramBotToken,
+      telegram_chat_id: telegramChatId,
+      alerts_enabled: alertsEnabled,
+    })
+    if (!parsed.success) {
+      setErrors(parsed.error.flatten().fieldErrors)
+      return
+    }
+    setErrors({})
     setSaving(true)
     try {
       const response = await fetch("/api/settings/telegram", {
@@ -43,11 +56,7 @@ export default function SettingsPage() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          telegram_bot_token: telegramBotToken,
-          telegram_chat_id: telegramChatId,
-          alerts_enabled: alertsEnabled,
-        }),
+        body: JSON.stringify(parsed.data),
       })
 
       if (!response.ok) {
@@ -108,44 +117,48 @@ export default function SettingsPage() {
           <CardTitle>Telegram Alerts</CardTitle>
           <CardDescription>Use your Telegram bot token and chat ID to receive automatic notifications.</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-5">
-          <div className="space-y-2">
-            <Label htmlFor="telegram_bot_token">Telegram Bot Token</Label>
-            <Input
-              id="telegram_bot_token"
-              type="password"
-              value={telegramBotToken}
-              onChange={(e) => setTelegramBotToken(e.target.value)}
-              placeholder="1234567890:AA..."
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="telegram_chat_id">Telegram Chat ID</Label>
-            <Input
-              id="telegram_chat_id"
-              value={telegramChatId}
-              onChange={(e) => setTelegramChatId(e.target.value)}
-              placeholder="e.g. 987654321"
-            />
-          </div>
-
-          <div className="flex items-center justify-between rounded-xl border border-border/70 p-3">
-            <div>
-              <p className="text-sm font-medium">Enable Alerts</p>
-              <p className="text-xs text-muted-foreground">Allow SSD and target-profit Telegram notifications.</p>
+        <CardContent>
+          <form className="space-y-5" onSubmit={saveSettings} noValidate>
+            <div className="space-y-2">
+              <Label htmlFor="telegram_bot_token">Telegram Bot Token</Label>
+              <Input
+                id="telegram_bot_token"
+                type="password"
+                value={telegramBotToken}
+                onChange={(e) => setTelegramBotToken(e.target.value)}
+                placeholder="1234567890:AA..."
+              />
+              {errors.telegram_bot_token ? <p className="mt-1 text-sm text-red-500">{errors.telegram_bot_token[0]}</p> : null}
             </div>
-            <Switch checked={alertsEnabled} onCheckedChange={setAlertsEnabled} />
-          </div>
 
-          <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
-            <Button type="button" variant="outline" onClick={sendTestMessage} disabled={testing} className="w-full sm:w-auto">
-              {testing ? "Sending Test..." : "Send Test"}
-            </Button>
-            <Button type="button" onClick={saveSettings} disabled={saving} className="w-full sm:w-auto">
-              {saving ? "Saving..." : "Save Settings"}
-            </Button>
-          </div>
+            <div className="space-y-2">
+              <Label htmlFor="telegram_chat_id">Telegram Chat ID</Label>
+              <Input
+                id="telegram_chat_id"
+                value={telegramChatId}
+                onChange={(e) => setTelegramChatId(e.target.value)}
+                placeholder="e.g. 987654321"
+              />
+              {errors.telegram_chat_id ? <p className="mt-1 text-sm text-red-500">{errors.telegram_chat_id[0]}</p> : null}
+            </div>
+
+            <div className="flex items-center justify-between rounded-xl border border-border/70 p-3">
+              <div>
+                <p className="text-sm font-medium">Enable Alerts</p>
+                <p className="text-xs text-muted-foreground">Allow SSD and target-profit Telegram notifications.</p>
+              </div>
+              <Switch checked={alertsEnabled} onCheckedChange={setAlertsEnabled} />
+            </div>
+
+            <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
+              <Button type="button" variant="outline" onClick={sendTestMessage} disabled={testing} className="w-full sm:w-auto">
+                {testing ? "Sending Test..." : "Send Test"}
+              </Button>
+              <Button type="submit" disabled={saving} className="w-full sm:w-auto">
+                {saving ? "Saving..." : "Save Settings"}
+              </Button>
+            </div>
+          </form>
         </CardContent>
       </Card>
     </div>

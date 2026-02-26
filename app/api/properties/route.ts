@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import sql, { initDB } from '@/lib/database'
 import { auth } from '@/lib/auth'
 import { calculateBSD } from '@/lib/utils'
+import { createPropertySchema } from '@/lib/validations'
 
 export async function GET() {
   try {
@@ -40,9 +41,17 @@ export async function POST(request: NextRequest) {
 
     await initDB()
     const data = await request.json()
+    const parsed = createPropertySchema.safeParse(data)
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: 'Validation failed', details: parsed.error.flatten().fieldErrors },
+        { status: 400 }
+      )
+    }
+    const validated = parsed.data
     
     // Calculate stamp duty if not provided
-    const stampDuty = data.stamp_duty || calculateBSD(data.purchase_price)
+    const stampDuty = validated.stamp_duty || calculateBSD(validated.purchase_price)
     
     const result = await sql`
       INSERT INTO properties (
@@ -51,10 +60,10 @@ export async function POST(request: NextRequest) {
         cpf_amount, mortgage_amount, mortgage_interest_rate, mortgage_tenure, monthly_rental,
         target_profit_percentage, target_profit_alert_sent, user_id
       ) VALUES (
-        ${data.name}, ${data.address}, ${data.type}, ${data.purchase_price}, ${data.purchase_date},
-        ${stampDuty}, ${data.renovation_cost || 0}, ${data.agent_fees || 0}, ${data.current_value || data.purchase_price},
-        ${data.cpf_amount || 0}, ${data.mortgage_amount || 0}, ${data.mortgage_interest_rate || 0}, ${data.mortgage_tenure || 0}, ${data.monthly_rental || 0},
-        ${data.target_profit_percentage || 0}, false, ${userId}
+        ${validated.name}, ${validated.address}, ${validated.type}, ${validated.purchase_price}, ${validated.purchase_date},
+        ${stampDuty}, ${validated.renovation_cost}, ${validated.agent_fees}, ${validated.current_value || validated.purchase_price},
+        ${validated.cpf_amount}, ${validated.mortgage_amount}, ${validated.mortgage_interest_rate}, ${validated.mortgage_tenure}, ${validated.monthly_rental},
+        ${validated.target_profit_percentage}, false, ${userId}
       ) RETURNING *
     `
 
@@ -63,7 +72,7 @@ export async function POST(request: NextRequest) {
     // Insert purchase transaction
     await sql`
       INSERT INTO transactions (property_id, type, amount, description, date)
-      VALUES (${newProperty.id}, 'purchase', ${data.purchase_price}, 'Initial property purchase', ${data.purchase_date})
+      VALUES (${newProperty.id}, 'purchase', ${validated.purchase_price}, 'Initial property purchase', ${validated.purchase_date})
     `
 
     return NextResponse.json(newProperty, { status: 201 })

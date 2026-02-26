@@ -10,22 +10,33 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { PasswordInput } from "@/components/ui/password-input"
 import { Label } from "@/components/ui/label"
+import { loginSchema } from "@/lib/validations"
 
 export default function LoginPage() {
   const router = useRouter()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
+  const [errors, setErrors] = useState<Record<string, string[]>>({})
   const [isLoading, setIsLoading] = useState(false)
 
   const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setError("")
+    const parsed = loginSchema.safeParse({
+      email,
+      password,
+    })
+    if (!parsed.success) {
+      setErrors(parsed.error.flatten().fieldErrors)
+      return
+    }
+    setErrors({})
     setIsLoading(true)
 
     const result = await signIn("credentials", {
-      email,
-      password,
+      email: parsed.data.email,
+      password: parsed.data.password,
       redirect: false,
     })
 
@@ -49,7 +60,7 @@ export default function LoginPage() {
         </CardHeader>
 
         <CardContent>
-          <form className="space-y-4" onSubmit={onSubmit}>
+          <form className="space-y-4" onSubmit={onSubmit} noValidate>
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
@@ -58,8 +69,8 @@ export default function LoginPage() {
                 autoComplete="email"
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
-                required
               />
+              {errors.email ? <p className="mt-1 text-sm text-red-500">{errors.email[0]}</p> : null}
             </div>
 
             <div className="space-y-2">
@@ -69,8 +80,8 @@ export default function LoginPage() {
                 autoComplete="current-password"
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
-                required
               />
+              {errors.password ? <p className="mt-1 text-sm text-red-500">{errors.password[0]}</p> : null}
             </div>
 
             {error ? <p className="text-sm text-destructive">{error}</p> : null}

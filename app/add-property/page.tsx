@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { FormEvent, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -10,10 +10,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ArrowLeft, Calculator } from "lucide-react"
 import Link from "next/link"
 import { calculateBSD } from "@/lib/utils"
+import { createPropertySchema } from "@/lib/validations"
 
 export default function AddProperty() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
+  const [errors, setErrors] = useState<Record<string, string[]>>({})
   const [formData, setFormData] = useState({
     name: "",
     address: "",
@@ -51,8 +53,30 @@ export default function AddProperty() {
     }
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
+    const parsed = createPropertySchema.safeParse({
+      name: formData.name,
+      address: formData.address,
+      type: formData.type,
+      purchase_price: parseFloat(formData.purchase_price),
+      purchase_date: formData.purchase_date,
+      stamp_duty: parseFloat(formData.stamp_duty) || 0,
+      renovation_cost: parseFloat(formData.renovation_cost) || 0,
+      agent_fees: parseFloat(formData.agent_fees) || 0,
+      current_value: parseFloat(formData.current_value) || parseFloat(formData.purchase_price),
+      cpf_amount: parseFloat(formData.cpf_amount) || 0,
+      mortgage_amount: parseFloat(formData.mortgage_amount) || 0,
+      mortgage_interest_rate: parseFloat(formData.mortgage_interest_rate) || 0,
+      mortgage_tenure: parseInt(formData.mortgage_tenure) || 0,
+      monthly_rental: parseFloat(formData.monthly_rental) || 0,
+      target_profit_percentage: parseFloat(formData.target_profit_percentage) || 0,
+    })
+    if (!parsed.success) {
+      setErrors(parsed.error.flatten().fieldErrors)
+      return
+    }
+    setErrors({})
     setLoading(true)
 
     try {
@@ -61,23 +85,7 @@ export default function AddProperty() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          name: formData.name,
-          address: formData.address,
-          type: formData.type,
-          purchase_price: parseFloat(formData.purchase_price),
-          purchase_date: formData.purchase_date,
-          stamp_duty: parseFloat(formData.stamp_duty) || 0,
-          renovation_cost: parseFloat(formData.renovation_cost) || 0,
-          agent_fees: parseFloat(formData.agent_fees) || 0,
-          current_value: parseFloat(formData.current_value) || parseFloat(formData.purchase_price),
-          cpf_amount: parseFloat(formData.cpf_amount) || 0,
-          mortgage_amount: parseFloat(formData.mortgage_amount) || 0,
-          mortgage_interest_rate: parseFloat(formData.mortgage_interest_rate) || 0,
-          mortgage_tenure: parseInt(formData.mortgage_tenure) || 0,
-          monthly_rental: parseFloat(formData.monthly_rental) || 0,
-          target_profit_percentage: parseFloat(formData.target_profit_percentage) || 0,
-        }),
+        body: JSON.stringify(parsed.data),
       })
 
       if (response.ok) {
@@ -123,7 +131,7 @@ export default function AddProperty() {
         </div>
       </section>
 
-      <form onSubmit={handleSubmit} className="space-y-5 sm:space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-5 sm:space-y-6" noValidate>
         <Card>
           <CardHeader>
             <CardTitle>Basic Information</CardTitle>
@@ -133,11 +141,12 @@ export default function AddProperty() {
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="name">Property Name</Label>
-                <Input id="name" value={formData.name} onChange={(e) => handleInputChange("name", e.target.value)} placeholder="e.g., My HDB Flat" required />
+                <Input id="name" value={formData.name} onChange={(e) => handleInputChange("name", e.target.value)} placeholder="e.g., My HDB Flat" />
+                {errors.name ? <p className="mt-1 text-sm text-red-500">{errors.name[0]}</p> : null}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="type">Property Type</Label>
-                <Select value={formData.type} onValueChange={(value) => handleInputChange("type", value)} required>
+                <Select value={formData.type} onValueChange={(value) => handleInputChange("type", value)}>
                   <SelectTrigger id="type">
                     <SelectValue placeholder="Select property type" />
                   </SelectTrigger>
@@ -147,12 +156,14 @@ export default function AddProperty() {
                     <SelectItem value="Landed">Landed Property</SelectItem>
                   </SelectContent>
                 </Select>
+                {errors.type ? <p className="mt-1 text-sm text-red-500">{errors.type[0]}</p> : null}
               </div>
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="address">Address</Label>
-              <Input id="address" value={formData.address} onChange={(e) => handleInputChange("address", e.target.value)} placeholder="Full property address" required />
+              <Input id="address" value={formData.address} onChange={(e) => handleInputChange("address", e.target.value)} placeholder="Full property address" />
+              {errors.address ? <p className="mt-1 text-sm text-red-500">{errors.address[0]}</p> : null}
             </div>
           </CardContent>
         </Card>
@@ -172,12 +183,13 @@ export default function AddProperty() {
                   value={formData.purchase_price}
                   onChange={(e) => handleInputChange("purchase_price", e.target.value)}
                   placeholder="0"
-                  required
                 />
+                {errors.purchase_price ? <p className="mt-1 text-sm text-red-500">{errors.purchase_price[0]}</p> : null}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="purchase_date">Purchase Date</Label>
-                <Input id="purchase_date" type="date" value={formData.purchase_date} onChange={(e) => handleInputChange("purchase_date", e.target.value)} required />
+                <Input id="purchase_date" type="date" value={formData.purchase_date} onChange={(e) => handleInputChange("purchase_date", e.target.value)} />
+                {errors.purchase_date ? <p className="mt-1 text-sm text-red-500">{errors.purchase_date[0]}</p> : null}
               </div>
             </div>
 
@@ -190,6 +202,7 @@ export default function AddProperty() {
                 </Button>
               </div>
               <Input id="stamp_duty" type="number" value={formData.stamp_duty} onChange={(e) => handleInputChange("stamp_duty", e.target.value)} placeholder="0" />
+              {errors.stamp_duty ? <p className="mt-1 text-sm text-red-500">{errors.stamp_duty[0]}</p> : null}
             </div>
           </CardContent>
         </Card>
@@ -204,14 +217,17 @@ export default function AddProperty() {
               <div className="space-y-2">
                 <Label htmlFor="renovation_cost">Renovation Cost (SGD)</Label>
                 <Input id="renovation_cost" type="number" value={formData.renovation_cost} onChange={(e) => handleInputChange("renovation_cost", e.target.value)} placeholder="0" />
+                {errors.renovation_cost ? <p className="mt-1 text-sm text-red-500">{errors.renovation_cost[0]}</p> : null}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="agent_fees">Agent Fees (SGD)</Label>
                 <Input id="agent_fees" type="number" value={formData.agent_fees} onChange={(e) => handleInputChange("agent_fees", e.target.value)} placeholder="0" />
+                {errors.agent_fees ? <p className="mt-1 text-sm text-red-500">{errors.agent_fees[0]}</p> : null}
               </div>
               <div className="space-y-2 lg:col-span-1">
                 <Label htmlFor="cpf_amount">CPF Amount Used (SGD)</Label>
                 <Input id="cpf_amount" type="number" value={formData.cpf_amount} onChange={(e) => handleInputChange("cpf_amount", e.target.value)} placeholder="0" />
+                {errors.cpf_amount ? <p className="mt-1 text-sm text-red-500">{errors.cpf_amount[0]}</p> : null}
               </div>
             </div>
           </CardContent>
@@ -226,6 +242,7 @@ export default function AddProperty() {
             <div className="space-y-2">
               <Label htmlFor="mortgage_amount">Loan Amount (SGD)</Label>
               <Input id="mortgage_amount" type="number" value={formData.mortgage_amount} onChange={(e) => handleInputChange("mortgage_amount", e.target.value)} placeholder="0" />
+              {errors.mortgage_amount ? <p className="mt-1 text-sm text-red-500">{errors.mortgage_amount[0]}</p> : null}
             </div>
             <div className="space-y-2">
               <Label htmlFor="mortgage_interest_rate">Interest Rate (%)</Label>
@@ -237,10 +254,12 @@ export default function AddProperty() {
                 onChange={(e) => handleInputChange("mortgage_interest_rate", e.target.value)}
                 placeholder="0.00"
               />
+              {errors.mortgage_interest_rate ? <p className="mt-1 text-sm text-red-500">{errors.mortgage_interest_rate[0]}</p> : null}
             </div>
             <div className="space-y-2">
               <Label htmlFor="mortgage_tenure">Tenure (Years)</Label>
               <Input id="mortgage_tenure" type="number" value={formData.mortgage_tenure} onChange={(e) => handleInputChange("mortgage_tenure", e.target.value)} placeholder="0" />
+              {errors.mortgage_tenure ? <p className="mt-1 text-sm text-red-500">{errors.mortgage_tenure[0]}</p> : null}
             </div>
           </CardContent>
         </Card>
@@ -254,10 +273,12 @@ export default function AddProperty() {
             <div className="space-y-2">
               <Label htmlFor="current_value">Current Market Value (SGD)</Label>
               <Input id="current_value" type="number" value={formData.current_value} onChange={(e) => handleInputChange("current_value", e.target.value)} placeholder="0" />
+              {errors.current_value ? <p className="mt-1 text-sm text-red-500">{errors.current_value[0]}</p> : null}
             </div>
             <div className="space-y-2">
               <Label htmlFor="monthly_rental">Monthly Rental Income (SGD)</Label>
               <Input id="monthly_rental" type="number" value={formData.monthly_rental} onChange={(e) => handleInputChange("monthly_rental", e.target.value)} placeholder="0" />
+              {errors.monthly_rental ? <p className="mt-1 text-sm text-red-500">{errors.monthly_rental[0]}</p> : null}
             </div>
             <div className="space-y-2 lg:col-span-2">
               <Label htmlFor="target_profit_percentage">Target Profit Alert (%)</Label>
@@ -269,6 +290,7 @@ export default function AddProperty() {
                 onChange={(e) => handleInputChange("target_profit_percentage", e.target.value)}
                 placeholder="0"
               />
+              {errors.target_profit_percentage ? <p className="mt-1 text-sm text-red-500">{errors.target_profit_percentage[0]}</p> : null}
             </div>
           </CardContent>
         </Card>

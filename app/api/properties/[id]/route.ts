@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import sql, { initDB } from '@/lib/database'
 import { auth } from '@/lib/auth'
+import { idParamSchema, updatePropertySchema } from '@/lib/validations'
 
 export async function GET(
   request: NextRequest,
@@ -16,9 +17,17 @@ export async function GET(
 
     await initDB()
     const { id } = await params
+    const idParsed = idParamSchema.safeParse({ id })
+    if (!idParsed.success) {
+      return NextResponse.json(
+        { error: 'Validation failed', details: idParsed.error.flatten().fieldErrors },
+        { status: 400 }
+      )
+    }
+
     const properties = await sql`
       SELECT * FROM properties
-      WHERE id = ${id} AND user_id = ${userId}
+      WHERE id = ${idParsed.data.id} AND user_id = ${userId}
     `
     
     if (properties.length === 0) {
@@ -30,7 +39,7 @@ export async function GET(
 
     const transactions = await sql`
       SELECT * FROM transactions 
-      WHERE property_id = ${id}
+      WHERE property_id = ${idParsed.data.id}
       ORDER BY date DESC
     `
 
@@ -58,23 +67,39 @@ export async function PUT(
 
     await initDB()
     const { id } = await params
+    const idParsed = idParamSchema.safeParse({ id })
+    if (!idParsed.success) {
+      return NextResponse.json(
+        { error: 'Validation failed', details: idParsed.error.flatten().fieldErrors },
+        { status: 400 }
+      )
+    }
+
     const data = await request.json()
+    const parsed = updatePropertySchema.safeParse(data)
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: 'Validation failed', details: parsed.error.flatten().fieldErrors },
+        { status: 400 }
+      )
+    }
+    const validated = parsed.data
     
     const result = await sql`
       UPDATE properties 
-      SET name = ${data.name}, address = ${data.address}, type = ${data.type}, 
-          purchase_price = ${data.purchase_price}, purchase_date = ${data.purchase_date},
-          stamp_duty = ${data.stamp_duty}, renovation_cost = ${data.renovation_cost}, 
-          agent_fees = ${data.agent_fees}, current_value = ${data.current_value},
-          cpf_amount = ${data.cpf_amount}, mortgage_amount = ${data.mortgage_amount}, 
-          mortgage_interest_rate = ${data.mortgage_interest_rate}, mortgage_tenure = ${data.mortgage_tenure},
-          monthly_rental = ${data.monthly_rental || 0},
-          target_profit_percentage = ${data.target_profit_percentage || 0},
+      SET name = ${validated.name}, address = ${validated.address}, type = ${validated.type}, 
+          purchase_price = ${validated.purchase_price}, purchase_date = ${validated.purchase_date},
+          stamp_duty = ${validated.stamp_duty}, renovation_cost = ${validated.renovation_cost}, 
+          agent_fees = ${validated.agent_fees}, current_value = ${validated.current_value},
+          cpf_amount = ${validated.cpf_amount}, mortgage_amount = ${validated.mortgage_amount}, 
+          mortgage_interest_rate = ${validated.mortgage_interest_rate}, mortgage_tenure = ${validated.mortgage_tenure},
+          monthly_rental = ${validated.monthly_rental},
+          target_profit_percentage = ${validated.target_profit_percentage},
           target_profit_alert_sent = CASE
-            WHEN ${data.target_profit_percentage || 0} <> target_profit_percentage THEN false
+            WHEN ${validated.target_profit_percentage} <> target_profit_percentage THEN false
             ELSE target_profit_alert_sent
           END
-      WHERE id = ${id} AND user_id = ${userId}
+      WHERE id = ${idParsed.data.id} AND user_id = ${userId}
       RETURNING *
     `
 
@@ -109,9 +134,17 @@ export async function DELETE(
 
     await initDB()
     const { id } = await params
+    const idParsed = idParamSchema.safeParse({ id })
+    if (!idParsed.success) {
+      return NextResponse.json(
+        { error: 'Validation failed', details: idParsed.error.flatten().fieldErrors },
+        { status: 400 }
+      )
+    }
+
     const result = await sql`
       DELETE FROM properties
-      WHERE id = ${id} AND user_id = ${userId}
+      WHERE id = ${idParsed.data.id} AND user_id = ${userId}
       RETURNING id
     `
 

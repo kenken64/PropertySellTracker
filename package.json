@@ -42,7 +42,7 @@
     "tailwind-merge": "2.6.1",
     "tailwindcss": "4.2.1",
     "typescript": "5.9.3",
-    "zod": "3.25.0"
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@playwright/test": "^1.50.0",

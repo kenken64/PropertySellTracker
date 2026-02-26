@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import sql, { initDB } from "@/lib/database"
 import { auth } from "@/lib/auth"
+import { telegramSettingsSchema } from "@/lib/validations"
 
 function getUserIdFromSession(session: { user?: { id?: string } } | null) {
   const userId = Number(session?.user?.id)
@@ -51,10 +52,18 @@ export async function PUT(request: NextRequest) {
 
     await initDB()
     const data = await request.json()
+    const parsed = telegramSettingsSchema.safeParse(data)
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: "Validation failed", details: parsed.error.flatten().fieldErrors },
+        { status: 400 }
+      )
+    }
 
-    const botToken = String(data.telegram_bot_token || "").trim()
-    const chatId = String(data.telegram_chat_id || "").trim()
-    const alertsEnabled = data.alerts_enabled !== false
+    const validated = parsed.data
+    const botToken = validated.telegram_bot_token.trim()
+    const chatId = validated.telegram_chat_id.trim()
+    const alertsEnabled = validated.alerts_enabled
 
     const result = await sql`
       INSERT INTO user_settings (user_id, telegram_bot_token, telegram_chat_id, alerts_enabled)
