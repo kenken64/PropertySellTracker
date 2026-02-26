@@ -48,11 +48,11 @@ export async function POST(request: NextRequest) {
       INSERT INTO properties (
         name, address, type, purchase_price, purchase_date,
         stamp_duty, renovation_cost, agent_fees, current_value,
-        cpf_amount, mortgage_amount, mortgage_interest_rate, mortgage_tenure, user_id
+        cpf_amount, mortgage_amount, mortgage_interest_rate, mortgage_tenure, monthly_rental, user_id
       ) VALUES (
         ${data.name}, ${data.address}, ${data.type}, ${data.purchase_price}, ${data.purchase_date},
         ${stampDuty}, ${data.renovation_cost || 0}, ${data.agent_fees || 0}, ${data.current_value || data.purchase_price},
-        ${data.cpf_amount || 0}, ${data.mortgage_amount || 0}, ${data.mortgage_interest_rate || 0}, ${data.mortgage_tenure || 0}, ${userId}
+        ${data.cpf_amount || 0}, ${data.mortgage_amount || 0}, ${data.mortgage_interest_rate || 0}, ${data.mortgage_tenure || 0}, ${data.monthly_rental || 0}, ${userId}
       ) RETURNING *
     `
 

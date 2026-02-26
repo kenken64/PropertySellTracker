@@ -1,9 +1,10 @@
 "use client"
 
 import * as React from "react"
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
+import { differenceInDays, parseISO } from "date-fns"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -21,6 +22,11 @@ import {
   calculateCPFAccruedInterest,
   getSSDCountdown,
   calculateMortgageInterestPaid,
+  calculateGrossYield,
+  calculateNetYield,
+  calculateSellNowProceeds,
+  calculateHoldProceeds,
+  getSellRecommendation,
 } from "@/lib/utils"
 import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts"
 
@@ -39,6 +45,7 @@ interface Property {
   mortgage_interest_rate: number
   mortgage_tenure: number
   cpf_amount: number
+  monthly_rental: number
   transactions: any[]
 }
 
@@ -47,7 +54,9 @@ export default function PropertyDetail({ params }: { params: Promise<{ id: strin
   const [property, setProperty] = useState<Property | null>(null)
   const [loading, setLoading] = useState(true)
   const [currentValue, setCurrentValue] = useState("")
+  const [monthlyRental, setMonthlyRental] = useState("")
   const [updating, setUpdating] = useState(false)
+  const [appreciationRate, setAppreciationRate] = useState(3)
   const router = useRouter()
 
   useEffect(() => {
@@ -61,6 +70,7 @@ export default function PropertyDetail({ params }: { params: Promise<{ id: strin
         const data = await response.json()
         setProperty(data)
         setCurrentValue(data.current_value?.toString() || data.purchase_price.toString())
+        setMonthlyRental((data.monthly_rental || 0).toString())
       } else if (response.status === 404) {
         router.push("/")
       }
@@ -71,7 +81,7 @@ export default function PropertyDetail({ params }: { params: Promise<{ id: strin
     }
   }
 
-  const updateCurrentValue = async () => {
+  const updatePropertySnapshot = async () => {
     if (!property || !currentValue) return
 
     setUpdating(true)
@@ -84,6 +94,7 @@ export default function PropertyDetail({ params }: { params: Promise<{ id: strin
         body: JSON.stringify({
           ...property,
           current_value: parseFloat(currentValue),
+          monthly_rental: parseFloat(monthlyRental) || 0,
         }),
       })
 
@@ -112,7 +123,8 @@ export default function PropertyDetail({ params }: { params: Promise<{ id: strin
   const annualizedReturn = calculateAnnualizedReturn(property)
   const breakEvenPrice = calculateBreakEvenPrice(property)
   const ssdInfo = getSSDCountdown(property.purchase_date)
-  const ssdAmount = calculateSSD(property.current_value || property.purchase_price, property.purchase_date)
+  const salePrice = property.current_value || property.purchase_price
+  const ssdAmount = calculateSSD(salePrice, property.purchase_date)
   const cpfAccruedInterest = calculateCPFAccruedInterest(property.cpf_amount, property.purchase_date)
   const mortgageInterestPaid = calculateMortgageInterestPaid(
     property.mortgage_amount,
@@ -121,12 +133,25 @@ export default function PropertyDetail({ params }: { params: Promise<{ id: strin
     property.purchase_date
   )
 
-  const salePrice = property.current_value || property.purchase_price
-  const agentFees = salePrice * 0.02
-  const cpfRepayment = property.cpf_amount + cpfAccruedInterest
-  const netSaleProceeds = salePrice - ssdAmount - agentFees - cpfRepayment - totalCost
+  const annualRental = (property.monthly_rental || 0) * 12
+  const annualExpenses = 3000 + annualRental * 0.01 + 300
+  const grossYield = calculateGrossYield(property.monthly_rental || 0, salePrice)
+  const netYield = calculateNetYield(property.monthly_rental || 0, salePrice, annualExpenses)
 
-  const generateProjectionData = () => {
+  const sellNowProceeds = calculateSellNowProceeds(property)
+  const holdOneYearProceeds = calculateHoldProceeds(property, 12, appreciationRate)
+  const holdTwoYearProceeds = calculateHoldProceeds(property, 24, appreciationRate)
+
+  const daysToSsdFree = Math.max(0, 1095 - differenceInDays(new Date(), parseISO(property.purchase_date)))
+  const monthsToSsdFree = Math.ceil(daysToSsdFree / 30.44)
+  const holdSsdFreeProceeds = calculateHoldProceeds(property, monthsToSsdFree, appreciationRate)
+
+  const sellRecommendation = getSellRecommendation({
+    ...property,
+    current_value: salePrice,
+  })
+
+  const projectionData = useMemo(() => {
     const data = []
     const startDate = new Date(property.purchase_date)
     const currentDate = new Date()
@@ -136,14 +161,19 @@ export default function PropertyDetail({ params }: { params: Promise<{ id: strin
 
     for (let i = 1; i <= 5; i++) {
       const futureDate = new Date(currentDate.getFullYear() + i, 0, 1)
-      const projectedValue = salePrice * Math.pow(1.03, i)
+      const projectedValue = salePrice * Math.pow(1 + appreciationRate / 100, i)
       data.push({ date: futureDate.getFullYear().toString(), value: projectedValue, type: "projection" })
     }
 
     return data
-  }
+  }, [appreciationRate, property.purchase_date, property.purchase_price, salePrice])
 
-  const chartData = generateProjectionData()
+  const sellRows = [
+    { label: "Sell Now", months: 0, proceeds: sellNowProceeds },
+    { label: "Hold 1 Year", months: 12, proceeds: holdOneYearProceeds },
+    { label: "Hold 2 Years", months: 24, proceeds: holdTwoYearProceeds },
+    { label: "Hold Until SSD-Free", months: monthsToSsdFree, proceeds: holdSsdFreeProceeds },
+  ]
 
   return (
     <div className="mx-auto max-w-7xl space-y-6 sm:space-y-8">
@@ -187,12 +217,13 @@ export default function PropertyDetail({ params }: { params: Promise<{ id: strin
           </CardHeader>
           <CardContent className="space-y-2">
             <div className="text-2xl font-bold">{formatCurrency(salePrice)}</div>
-            <div className="flex flex-col gap-2 sm:flex-row">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               <Input type="number" value={currentValue} onChange={(e) => setCurrentValue(e.target.value)} placeholder="Update value" className="h-9 text-xs" />
-              <Button size="sm" onClick={updateCurrentValue} disabled={updating} className="h-9 shrink-0">
-                {updating ? "Updating..." : "Update"}
-              </Button>
+              <Input type="number" value={monthlyRental} onChange={(e) => setMonthlyRental(e.target.value)} placeholder="Monthly rental" className="h-9 text-xs" />
             </div>
+            <Button size="sm" onClick={updatePropertySnapshot} disabled={updating} className="h-9 w-full">
+              {updating ? "Updating..." : "Update Value + Rental"}
+            </Button>
           </CardContent>
         </Card>
 
@@ -251,9 +282,10 @@ export default function PropertyDetail({ params }: { params: Promise<{ id: strin
       )}
 
       <Tabs defaultValue="overview" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-2 gap-1 sm:flex sm:w-auto">
+        <TabsList className="grid w-full grid-cols-2 gap-1 md:grid-cols-5">
           <TabsTrigger value="overview" className="w-full">Overview</TabsTrigger>
           <TabsTrigger value="financials" className="w-full">Financials</TabsTrigger>
+          <TabsTrigger value="sell-analysis" className="w-full">Sell Analysis</TabsTrigger>
           <TabsTrigger value="projections" className="w-full">Projections</TabsTrigger>
           <TabsTrigger value="transactions" className="w-full">Transactions</TabsTrigger>
         </TabsList>
@@ -280,6 +312,14 @@ export default function PropertyDetail({ params }: { params: Promise<{ id: strin
                 <div>
                   <p className="text-xs text-muted-foreground">Purchase Price</p>
                   <p className="font-semibold">{formatCurrency(property.purchase_price)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Monthly Rental</p>
+                  <p className="font-semibold">{formatCurrency(property.monthly_rental || 0)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Annual Rental</p>
+                  <p className="font-semibold">{formatCurrency(annualRental)}</p>
                 </div>
               </CardContent>
             </Card>
@@ -357,47 +397,102 @@ export default function PropertyDetail({ params }: { params: Promise<{ id: strin
 
             <Card>
               <CardHeader>
-                <CardTitle>Sell Now Analysis</CardTitle>
+                <CardTitle>Rental Yield</CardTitle>
+                <CardDescription>Gross and net yield based on current value and annual expense estimate.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-3 text-sm">
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Selling Price</span>
-                  <span className="font-semibold">{formatCurrency(salePrice)}</span>
+                  <span className="text-muted-foreground">Monthly Rental</span>
+                  <span className="font-semibold">{formatCurrency(property.monthly_rental || 0)}</span>
                 </div>
-                <div className="flex justify-between text-red-600">
-                  <span>SSD ({ssdInfo.currentRate}%)</span>
-                  <span className="font-semibold">-{formatCurrency(ssdAmount)}</span>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Annual Expenses</span>
+                  <span className="font-semibold">{formatCurrency(annualExpenses)}</span>
                 </div>
-                <div className="flex justify-between text-red-600">
-                  <span>Agent Fees (2%)</span>
-                  <span className="font-semibold">-{formatCurrency(agentFees)}</span>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Gross Yield</span>
+                  <span className="font-semibold">{formatPercent(grossYield)}</span>
                 </div>
-                {property.cpf_amount > 0 && (
-                  <div className="flex justify-between text-red-600">
-                    <span>CPF + Interest</span>
-                    <span className="font-semibold">-{formatCurrency(cpfRepayment)}</span>
-                  </div>
-                )}
-                <hr className="border-border" />
-                <div className={`flex justify-between text-base font-bold ${netSaleProceeds >= 0 ? "text-emerald-600" : "text-red-600"}`}>
-                  <span>Net Proceeds</span>
-                  <span>{formatCurrency(netSaleProceeds)}</span>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Net Yield</span>
+                  <span className="font-semibold">{formatPercent(netYield)}</span>
                 </div>
+                <p className="text-xs text-muted-foreground">Annual expenses estimate: maintenance S$3,000 + property tax (1% of annual value) + insurance S$300.</p>
               </CardContent>
             </Card>
           </div>
+        </TabsContent>
+
+        <TabsContent value="sell-analysis" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Sell Now vs Hold</CardTitle>
+              <CardDescription>Includes SSD impact, additional mortgage interest during hold, and 3% opportunity cost on sale proceeds.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="font-medium">Annual appreciation rate</span>
+                  <span>{appreciationRate.toFixed(1)}%</span>
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="8"
+                  step="0.5"
+                  value={appreciationRate}
+                  onChange={(e) => setAppreciationRate(parseFloat(e.target.value))}
+                  className="w-full"
+                />
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[680px] text-sm">
+                  <thead>
+                    <tr className="border-b border-border text-left">
+                      <th className="px-2 py-2 font-semibold">Scenario</th>
+                      <th className="px-2 py-2 font-semibold">Hold Duration</th>
+                      <th className="px-2 py-2 text-right font-semibold">Projected Net Proceeds</th>
+                      <th className="px-2 py-2 text-right font-semibold">Delta vs Sell Now</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sellRows.map((row) => {
+                      const delta = row.proceeds - sellNowProceeds
+                      return (
+                        <tr key={row.label} className="border-b border-border/60">
+                          <td className="px-2 py-2 font-medium">{row.label}</td>
+                          <td className="px-2 py-2">{row.months} months</td>
+                          <td className="px-2 py-2 text-right font-semibold">{formatCurrency(row.proceeds)}</td>
+                          <td className={`px-2 py-2 text-right font-semibold ${delta >= 0 ? "text-emerald-600" : "text-red-600"}`}>
+                            {delta >= 0 ? "+" : ""}
+                            {formatCurrency(delta)}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 text-sm">
+                <p className="font-semibold">{sellRecommendation.message}</p>
+                <p className="mt-1 text-muted-foreground">Best scenario: {sellRecommendation.bestScenario}</p>
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="projections" className="space-y-4">
           <Card>
             <CardHeader>
               <CardTitle>Value Projection</CardTitle>
-              <CardDescription>Historical, current, and projected property values assuming 3% annual growth.</CardDescription>
+              <CardDescription>Historical, current, and projected values using {appreciationRate.toFixed(1)}% annual growth.</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="h-64 w-full sm:h-80">
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={chartData} margin={{ top: 10, right: 12, left: 0, bottom: 0 }}>
+                  <LineChart data={projectionData} margin={{ top: 10, right: 12, left: 0, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                     <XAxis dataKey="date" tick={{ fontSize: 12 }} />
                     <YAxis tickFormatter={(value) => `$${(value / 1000).toFixed(0)}k`} tick={{ fontSize: 12 }} width={50} />

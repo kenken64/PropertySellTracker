@@ -67,7 +67,8 @@ export async function PUT(
           stamp_duty = ${data.stamp_duty}, renovation_cost = ${data.renovation_cost}, 
           agent_fees = ${data.agent_fees}, current_value = ${data.current_value},
           cpf_amount = ${data.cpf_amount}, mortgage_amount = ${data.mortgage_amount}, 
-          mortgage_interest_rate = ${data.mortgage_interest_rate}, mortgage_tenure = ${data.mortgage_tenure}
+          mortgage_interest_rate = ${data.mortgage_interest_rate}, mortgage_tenure = ${data.mortgage_tenure},
+          monthly_rental = ${data.monthly_rental || 0}
       WHERE id = ${id} AND user_id = ${userId}
       RETURNING *
     `

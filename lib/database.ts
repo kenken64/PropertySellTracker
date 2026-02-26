@@ -41,6 +41,11 @@ export async function initDB() {
   `
 
   await sql`
+    ALTER TABLE properties
+    ADD COLUMN IF NOT EXISTS monthly_rental REAL DEFAULT 0
+  `
+
+  await sql`
     CREATE TABLE IF NOT EXISTS transactions (
       id SERIAL PRIMARY KEY,
       property_id INTEGER NOT NULL REFERENCES properties(id) ON DELETE CASCADE,

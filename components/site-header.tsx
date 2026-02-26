@@ -4,7 +4,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useState } from "react"
 import { signOut, useSession } from "next-auth/react"
-import { Building2, Calculator, Home, LogOut, Menu, Plus, UserCircle2, X } from "lucide-react"
+import { BarChart3, Building2, Calculator, Home, LogOut, Menu, Plus, UserCircle2, X } from "lucide-react"
 
 import { ThemeToggle } from "@/components/theme-toggle"
 import { Button } from "@/components/ui/button"
@@ -14,6 +14,7 @@ const navItems = [
   { href: "/", label: "Dashboard", icon: Home },
   { href: "/add-property", label: "Add Property", icon: Plus },
   { href: "/ssd-calculator", label: "SSD Calculator", icon: Calculator },
+  { href: "/hdb-resale", label: "HDB Resale Data", icon: BarChart3 },
 ]
 
 export function SiteHeader() {

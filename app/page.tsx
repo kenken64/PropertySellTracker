@@ -4,8 +4,9 @@ import { useEffect, useState } from "react"
 import Link from "next/link"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { ArrowRight, Clock, DollarSign, Eye, Plus, TrendingDown, TrendingUp } from "lucide-react"
+import { AlertTriangle, ArrowRight, Clock, DollarSign, Eye, Plus, TrendingDown, TrendingUp } from "lucide-react"
 import { formatCurrency, formatPercent, calculateNetProfit, calculateROI, calculateTotalCost, getSSDCountdown } from "@/lib/utils"
+import { getMasRates, type MasRatesSnapshot } from "@/lib/mas-rates"
 
 interface Property {
   id: number
@@ -22,14 +23,17 @@ interface Property {
   mortgage_interest_rate: number
   mortgage_tenure: number
   cpf_amount: number
+  monthly_rental: number
 }
 
 export default function Dashboard() {
   const [properties, setProperties] = useState<Property[]>([])
+  const [masRates, setMasRates] = useState<MasRatesSnapshot | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     fetchProperties()
+    getMasRates().then(setMasRates)
   }, [])
 
   const fetchProperties = async () => {
@@ -47,6 +51,15 @@ export default function Dashboard() {
   const totalInvestment = properties.reduce((sum, property) => sum + calculateTotalCost(property), 0)
   const totalCurrentValue = properties.reduce((sum, property) => sum + (property.current_value || property.purchase_price), 0)
   const totalProfit = totalCurrentValue - totalInvestment
+  const mortgageProperties = properties.filter((property) => property.mortgage_amount > 0 && property.mortgage_interest_rate > 0)
+  const weightedMortgageRate =
+    mortgageProperties.reduce((sum, property) => sum + property.mortgage_interest_rate * property.mortgage_amount, 0) /
+    Math.max(
+      mortgageProperties.reduce((sum, property) => sum + property.mortgage_amount, 0),
+      1
+    )
+  const marketRate = masRates?.rates.estimated_home_loan_rate || 0
+  const isPayingAboveMarket = mortgageProperties.length > 0 && weightedMortgageRate > marketRate
 
   if (loading) {
     return <div className="flex min-h-[50vh] items-center justify-center text-muted-foreground">Loading dashboard...</div>
@@ -109,6 +122,59 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className={`text-2xl font-bold ${totalProfit >= 0 ? "profit-positive" : "profit-negative"}`}>{formatCurrency(totalProfit)}</div>
+          </CardContent>
+        </Card>
+      </section>
+
+      <section>
+        <Card>
+          <CardHeader>
+            <CardTitle>MAS Interest Rates</CardTitle>
+            <CardDescription>Latest snapshot ({masRates?.last_updated || "loading..."}) and your mortgage comparison.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-2 gap-3 text-sm lg:grid-cols-3">
+              <div className="rounded-xl bg-muted/40 p-3">
+                <p className="text-xs text-muted-foreground">SOR (3M)</p>
+                <p className="mt-1 font-semibold">{masRates?.rates.sor_3m.toFixed(2) || "0.00"}%</p>
+              </div>
+              <div className="rounded-xl bg-muted/40 p-3">
+                <p className="text-xs text-muted-foreground">SORA (1M)</p>
+                <p className="mt-1 font-semibold">{masRates?.rates.sora_1m.toFixed(2) || "0.00"}%</p>
+              </div>
+              <div className="rounded-xl bg-muted/40 p-3">
+                <p className="text-xs text-muted-foreground">SORA (3M)</p>
+                <p className="mt-1 font-semibold">{masRates?.rates.sora_3m.toFixed(2) || "0.00"}%</p>
+              </div>
+              <div className="rounded-xl bg-muted/40 p-3">
+                <p className="text-xs text-muted-foreground">Fixed Deposit (12M)</p>
+                <p className="mt-1 font-semibold">{masRates?.rates.fixed_deposit_12m.toFixed(2) || "0.00"}%</p>
+              </div>
+              <div className="rounded-xl bg-muted/40 p-3">
+                <p className="text-xs text-muted-foreground">Savings Reference</p>
+                <p className="mt-1 font-semibold">{masRates?.rates.savings_reference.toFixed(2) || "0.00"}%</p>
+              </div>
+              <div className="rounded-xl bg-muted/40 p-3">
+                <p className="text-xs text-muted-foreground">Market Mortgage Est.</p>
+                <p className="mt-1 font-semibold">{marketRate.toFixed(2)}%</p>
+              </div>
+            </div>
+
+            {mortgageProperties.length > 0 ? (
+              <div className={`rounded-xl border p-3 text-sm ${isPayingAboveMarket ? "border-red-300/70 bg-red-50/60 text-red-800 dark:border-red-900 dark:bg-red-950/30 dark:text-red-200" : "border-emerald-300/70 bg-emerald-50/60 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200"}`}>
+                <p className="font-semibold">Your weighted mortgage rate: {weightedMortgageRate.toFixed(2)}%</p>
+                {isPayingAboveMarket ? (
+                  <p className="mt-1 inline-flex items-center gap-1">
+                    <AlertTriangle className="h-4 w-4" />
+                    Above market by {(weightedMortgageRate - marketRate).toFixed(2)}%
+                  </p>
+                ) : (
+                  <p className="mt-1">At or below market benchmark.</p>
+                )}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">No mortgage data yet. Add mortgage details to compare against market rates.</p>
+            )}
           </CardContent>
         </Card>
       </section>

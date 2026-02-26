@@ -28,6 +28,7 @@ export default function AddProperty() {
     mortgage_amount: "",
     mortgage_interest_rate: "",
     mortgage_tenure: "",
+    monthly_rental: "",
   })
 
   const handleInputChange = (name: string, value: string) => {
@@ -73,6 +74,7 @@ export default function AddProperty() {
           mortgage_amount: parseFloat(formData.mortgage_amount) || 0,
           mortgage_interest_rate: parseFloat(formData.mortgage_interest_rate) || 0,
           mortgage_tenure: parseInt(formData.mortgage_tenure) || 0,
+          monthly_rental: parseFloat(formData.monthly_rental) || 0,
         }),
       })
 
@@ -246,10 +248,14 @@ export default function AddProperty() {
             <CardTitle>Current Valuation</CardTitle>
             <CardDescription>Estimated current market value of the property.</CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="current_value">Current Market Value (SGD)</Label>
               <Input id="current_value" type="number" value={formData.current_value} onChange={(e) => handleInputChange("current_value", e.target.value)} placeholder="0" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="monthly_rental">Monthly Rental Income (SGD)</Label>
+              <Input id="monthly_rental" type="number" value={formData.monthly_rental} onChange={(e) => handleInputChange("monthly_rental", e.target.value)} placeholder="0" />
             </div>
           </CardContent>
         </Card>
