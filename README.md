@@ -128,6 +128,100 @@ echo "your-neon-connection-string" | vercel env add DATABASE_URL production
 vercel --prod
 ```
 
+## 📡 API Endpoints
+
+All API routes require authentication (JWT). Responses are JSON.
+
+### Authentication
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/auth/register` | Register a new user |
+| POST | `/api/auth/callback/credentials` | Login (via NextAuth) |
+| GET | `/api/auth/session` | Get current session |
+| POST | `/api/auth/signout` | Sign out |
+
+**Register** `POST /api/auth/register`
+```json
+{
+  "name": "Kenneth Phang",
+  "email": "ken@example.com",
+  "password": "securepassword"
+}
+```
+Response: `201` on success, `400` for validation errors, `409` if email exists.
+
+### Properties (User-scoped)
+
+All property endpoints filter by the authenticated user's ID.
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/properties` | List all properties for current user |
+| POST | `/api/properties` | Create a new property |
+| GET | `/api/properties/[id]` | Get property detail + transactions |
+| PUT | `/api/properties/[id]` | Update a property |
+| DELETE | `/api/properties/[id]` | Delete a property |
+
+**Create Property** `POST /api/properties`
+```json
+{
+  "name": "Ang Mo Kio Blk 333",
+  "address": "Ang Mo Kio Ave 1",
+  "type": "HDB",
+  "purchase_price": 350000,
+  "purchase_date": "2024-01-15",
+  "stamp_duty": 5200,
+  "renovation_cost": 50000,
+  "agent_fees": 5000,
+  "current_value": 380000,
+  "cpf_amount": 250000,
+  "mortgage_amount": 200000,
+  "mortgage_interest_rate": 3.0,
+  "mortgage_tenure": 25
+}
+```
+Response: `201` with created property object. BSD is auto-calculated if `stamp_duty` is not provided.
+
+**Get Property** `GET /api/properties/[id]`
+
+Response includes property data + `transactions` array:
+```json
+{
+  "id": 1,
+  "name": "Ang Mo Kio Blk 333",
+  "type": "HDB",
+  "purchase_price": 350000,
+  "current_value": 380000,
+  "transactions": [
+    {
+      "id": 1,
+      "type": "purchase",
+      "amount": 350000,
+      "description": "Initial property purchase",
+      "date": "2024-01-15"
+    }
+  ]
+}
+```
+
+**Update Property** `PUT /api/properties/[id]`
+
+Same body as create. Returns updated property object.
+
+**Delete Property** `DELETE /api/properties/[id]`
+
+Response: `{ "success": true }`
+
+### Error Responses
+
+| Status | Description |
+|--------|-------------|
+| 401 | Unauthorized (not logged in or invalid session) |
+| 404 | Property not found (or belongs to another user) |
+| 400 | Validation error |
+| 500 | Server error |
+
 ## 📁 Project Structure
 
 ```
