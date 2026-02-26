@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useState } from "react"
 import { useTranslations } from "next-intl"
+import { Eye, EyeOff } from "lucide-react"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -18,6 +19,7 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false)
   const [testing, setTesting] = useState(false)
   const [errors, setErrors] = useState<Record<string, string[]>>({})
+  const [showToken, setShowToken] = useState(false)
   const t = useTranslations("Settings")
 
   useEffect(() => {
@@ -122,13 +124,25 @@ export default function SettingsPage() {
           <form className="space-y-5" onSubmit={saveSettings} noValidate>
             <div className="space-y-2">
               <Label htmlFor="telegram_bot_token">{t("telegramBotToken")}</Label>
-              <Input
-                id="telegram_bot_token"
-                type="password"
-                value={telegramBotToken}
-                onChange={(e) => setTelegramBotToken(e.target.value)}
-                placeholder={t("telegramBotTokenPlaceholder")}
-              />
+              <div className="relative">
+                <Input
+                  id="telegram_bot_token"
+                  type={showToken ? "text" : "password"}
+                  value={telegramBotToken}
+                  onChange={(e) => setTelegramBotToken(e.target.value)}
+                  placeholder={t("telegramBotTokenPlaceholder")}
+                  className="pr-10"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-0 top-0 h-full px-3 text-muted-foreground hover:text-foreground"
+                  onClick={() => setShowToken(!showToken)}
+                >
+                  {showToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </Button>
+              </div>
               {errors.telegram_bot_token ? <p className="mt-1 text-sm text-red-500">{errors.telegram_bot_token[0]}</p> : null}
             </div>
 
@@ -144,11 +158,11 @@ export default function SettingsPage() {
             </div>
 
             <div className="flex items-center justify-between rounded-xl border border-border/70 p-3">
-              <div>
+              <Label htmlFor="alerts_enabled" className="flex-1 cursor-pointer space-y-0.5">
                 <p className="text-sm font-medium">{t("enableAlerts")}</p>
-                <p className="text-xs text-muted-foreground">{t("enableAlertsDesc")}</p>
-              </div>
-              <Switch checked={alertsEnabled} onCheckedChange={setAlertsEnabled} />
+                <p className="text-xs font-normal text-muted-foreground">{t("enableAlertsDesc")}</p>
+              </Label>
+              <Switch id="alerts_enabled" checked={alertsEnabled} onCheckedChange={(checked) => setAlertsEnabled(checked)} />
             </div>
 
             <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
