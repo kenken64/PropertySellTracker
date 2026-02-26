@@ -184,7 +184,21 @@
     "chartYear": "Tahun: {year}",
     "transactionHistory": "Sejarah Transaksi",
     "transactionHistoryDesc": "Semua transaksi berkaitan hartanah ini.",
-    "noTransactions": "Tiada transaksi direkodkan."
+    "noTransactions": "Tiada transaksi direkodkan.",
+    "refinancingHistory": "Sejarah Pembiayaan Semula",
+    "refinancingHistoryDesc": "Jejak pembiayaan semula gadai janji untuk pengiraan faedah yang tepat.",
+    "addRefinance": "Tambah Pembiayaan Semula",
+    "originalMortgage": "Gadai Janji Asal",
+    "active": "Aktif",
+    "refinance": "Pembiayaan Semula",
+    "refinanceDate": "Tarikh Pembiayaan Semula",
+    "noRefinances": "Tiada pembiayaan semula direkodkan. Terma gadai janji asal digunakan untuk pengiraan.",
+    "refinanceDescPlaceholder": "cth., Tukar ke kadar tetap",
+    "loanAmount": "Jumlah Pinjaman",
+    "interestRate": "Kadar Faedah",
+    "tenure": "Tempoh",
+    "years": "tahun",
+    "description": "Penerangan"
   },
   "HdbResale": {
     "title": "Data Jual Semula HDB",
@@ -301,6 +315,7 @@
     "invalidEmail": "Alamat e-mel tidak sah",
     "passwordMin": "Kata laluan mesti sekurang-kurangnya 8 aksara",
     "passwordRequired": "Kata laluan diperlukan",
-    "invalidId": "ID tidak sah"
+    "invalidId": "ID tidak sah",
+    "refinanceLoanPositive": "Jumlah pinjaman mesti lebih daripada 0"
   }
 }

@@ -56,6 +56,11 @@ export async function initDB() {
   `
 
   await sql`
+    ALTER TABLE properties
+    ADD COLUMN IF NOT EXISTS unit_no TEXT DEFAULT ''
+  `
+
+  await sql`
     CREATE TABLE IF NOT EXISTS transactions (
       id SERIAL PRIMARY KEY,
       property_id INTEGER NOT NULL REFERENCES properties(id) ON DELETE CASCADE,
@@ -63,6 +68,19 @@ export async function initDB() {
       amount REAL NOT NULL,
       description TEXT,
       date TEXT NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS refinances (
+      id SERIAL PRIMARY KEY,
+      property_id INTEGER NOT NULL REFERENCES properties(id) ON DELETE CASCADE,
+      refinance_date TEXT NOT NULL,
+      loan_amount REAL NOT NULL,
+      interest_rate REAL NOT NULL,
+      tenure INTEGER NOT NULL,
+      description TEXT DEFAULT '',
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `

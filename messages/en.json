@@ -184,7 +184,21 @@
     "chartYear": "Year: {year}",
     "transactionHistory": "Transaction History",
     "transactionHistoryDesc": "All transactions related to this property.",
-    "noTransactions": "No transactions recorded."
+    "noTransactions": "No transactions recorded.",
+    "refinancingHistory": "Refinancing History",
+    "refinancingHistoryDesc": "Track mortgage refinances over time for accurate interest calculations.",
+    "addRefinance": "Add Refinance",
+    "originalMortgage": "Original Mortgage",
+    "active": "Active",
+    "refinance": "Refinance",
+    "refinanceDate": "Refinance Date",
+    "noRefinances": "No refinances recorded. Original mortgage terms are used for calculations.",
+    "refinanceDescPlaceholder": "e.g., Switched to fixed rate",
+    "loanAmount": "Loan Amount",
+    "interestRate": "Interest Rate",
+    "tenure": "Tenure",
+    "years": "years",
+    "description": "Description"
   },
   "HdbResale": {
     "title": "HDB Resale Data",
@@ -301,6 +315,7 @@
     "invalidEmail": "Invalid email address",
     "passwordMin": "Password must be at least 8 characters",
     "passwordRequired": "Password is required",
-    "invalidId": "Invalid ID"
+    "invalidId": "Invalid ID",
+    "refinanceLoanPositive": "Loan amount must be positive"
   }
 }

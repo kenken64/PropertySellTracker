@@ -38,12 +38,18 @@ export async function GET(
     }
 
     const transactions = await sql`
-      SELECT * FROM transactions 
+      SELECT * FROM transactions
       WHERE property_id = ${idParsed.data.id}
       ORDER BY date DESC
     `
 
-    return NextResponse.json({ ...properties[0], transactions })
+    const refinances = await sql`
+      SELECT * FROM refinances
+      WHERE property_id = ${idParsed.data.id}
+      ORDER BY refinance_date ASC
+    `
+
+    return NextResponse.json({ ...properties[0], transactions, refinances })
   } catch (error) {
     console.error('Error fetching property:', error)
     return NextResponse.json(
@@ -87,7 +93,7 @@ export async function PUT(
     
     const result = await sql`
       UPDATE properties 
-      SET name = ${validated.name}, address = ${validated.address}, type = ${validated.type}, 
+      SET name = ${validated.name}, address = ${validated.address}, unit_no = ${validated.unit_no}, type = ${validated.type},
           purchase_price = ${validated.purchase_price}, purchase_date = ${validated.purchase_date},
           stamp_duty = ${validated.stamp_duty}, renovation_cost = ${validated.renovation_cost}, 
           agent_fees = ${validated.agent_fees}, current_value = ${validated.current_value},

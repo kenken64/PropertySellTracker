@@ -55,12 +55,12 @@ export async function POST(request: NextRequest) {
     
     const result = await sql`
       INSERT INTO properties (
-        name, address, type, purchase_price, purchase_date,
+        name, address, unit_no, type, purchase_price, purchase_date,
         stamp_duty, renovation_cost, agent_fees, current_value,
         cpf_amount, mortgage_amount, mortgage_interest_rate, mortgage_tenure, monthly_rental,
         target_profit_percentage, target_profit_alert_sent, user_id
       ) VALUES (
-        ${validated.name}, ${validated.address}, ${validated.type}, ${validated.purchase_price}, ${validated.purchase_date},
+        ${validated.name}, ${validated.address}, ${validated.unit_no}, ${validated.type}, ${validated.purchase_price}, ${validated.purchase_date},
         ${stampDuty}, ${validated.renovation_cost}, ${validated.agent_fees}, ${validated.current_value || validated.purchase_price},
         ${validated.cpf_amount}, ${validated.mortgage_amount}, ${validated.mortgage_interest_rate}, ${validated.mortgage_tenure}, ${validated.monthly_rental},
         ${validated.target_profit_percentage}, false, ${userId}

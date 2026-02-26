@@ -6,6 +6,16 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
+export interface RefinanceRecord {
+  id: number
+  property_id: number
+  refinance_date: string
+  loan_amount: number
+  interest_rate: number
+  tenure: number
+  description: string
+}
+
 export function formatCurrency(amount: number): string {
   return new Intl.NumberFormat("en-SG", {
     style: "currency",
@@ -149,6 +159,71 @@ export function calculateMortgageInterestPaid(
   return totalInterestPaid
 }
 
+// Calculate mortgage interest for a specific time segment
+function calculateSegmentInterest(
+  loanAmount: number,
+  interestRate: number,
+  tenureYears: number,
+  startDate: string,
+  endDate: Date
+): number {
+  if (loanAmount === 0 || interestRate === 0) return 0
+
+  const monthsElapsed = differenceInDays(endDate, parseISO(startDate)) / 30.44
+  const monthlyRate = interestRate / 100 / 12
+  const totalMonths = tenureYears * 12
+
+  if (monthsElapsed <= 0) return 0
+  if (monthsElapsed >= totalMonths) {
+    const monthlyPayment = (loanAmount * monthlyRate * Math.pow(1 + monthlyRate, totalMonths)) / (Math.pow(1 + monthlyRate, totalMonths) - 1)
+    return monthlyPayment * totalMonths - loanAmount
+  }
+
+  let remainingBalance = loanAmount
+  let totalInterestPaid = 0
+  const monthlyPayment = (loanAmount * monthlyRate * Math.pow(1 + monthlyRate, totalMonths)) / (Math.pow(1 + monthlyRate, totalMonths) - 1)
+
+  for (let month = 1; month <= Math.min(monthsElapsed, totalMonths); month++) {
+    const interestPayment = remainingBalance * monthlyRate
+    const principalPayment = monthlyPayment - interestPayment
+    totalInterestPaid += interestPayment
+    remainingBalance -= principalPayment
+  }
+
+  return totalInterestPaid
+}
+
+// Calculate mortgage interest with refinances — builds time segments and sums interest
+export function calculateMortgageInterestPaidWithRefinances(
+  originalLoan: number,
+  originalRate: number,
+  originalTenure: number,
+  purchaseDate: string,
+  refinances: RefinanceRecord[] = []
+): number {
+  if (refinances.length === 0) {
+    return calculateMortgageInterestPaid(originalLoan, originalRate, originalTenure, purchaseDate)
+  }
+
+  const now = new Date()
+  const sorted = [...refinances].sort((a, b) => a.refinance_date.localeCompare(b.refinance_date))
+
+  let totalInterest = 0
+
+  // Original mortgage period: purchase_date → first refinance date
+  const firstRefiDate = parseISO(sorted[0].refinance_date)
+  totalInterest += calculateSegmentInterest(originalLoan, originalRate, originalTenure, purchaseDate, firstRefiDate)
+
+  // Each refinance period
+  for (let i = 0; i < sorted.length; i++) {
+    const refi = sorted[i]
+    const endDate = i < sorted.length - 1 ? parseISO(sorted[i + 1].refinance_date) : now
+    totalInterest += calculateSegmentInterest(refi.loan_amount, refi.interest_rate, refi.tenure, refi.refinance_date, endDate)
+  }
+
+  return totalInterest
+}
+
 // Calculate CPF accrued interest at 2.5%
 export function calculateCPFAccruedInterest(cpfAmount: number, purchaseDate: string): number {
   if (cpfAmount === 0) return 0
@@ -158,20 +233,28 @@ export function calculateCPFAccruedInterest(cpfAmount: number, purchaseDate: str
 }
 
 // Calculate total cost of property
-export function calculateTotalCost(property: any): number {
-  const mortgageInterestPaid = calculateMortgageInterestPaid(
-    property.mortgage_amount,
-    property.mortgage_interest_rate,
-    property.mortgage_tenure,
-    property.purchase_date
-  )
+export function calculateTotalCost(property: any, refinances: RefinanceRecord[] = []): number {
+  const mortgageInterestPaid = refinances.length > 0
+    ? calculateMortgageInterestPaidWithRefinances(
+        property.mortgage_amount,
+        property.mortgage_interest_rate,
+        property.mortgage_tenure,
+        property.purchase_date,
+        refinances
+      )
+    : calculateMortgageInterestPaid(
+        property.mortgage_amount,
+        property.mortgage_interest_rate,
+        property.mortgage_tenure,
+        property.purchase_date
+      )
 
   return property.purchase_price + property.stamp_duty + property.renovation_cost + property.agent_fees + mortgageInterestPaid
 }
 
 // Calculate net profit/loss
-export function calculateNetProfit(property: any): number {
-  const totalCost = calculateTotalCost(property)
+export function calculateNetProfit(property: any, refinances: RefinanceRecord[] = []): number {
+  const totalCost = calculateTotalCost(property, refinances)
   const currentValue = property.current_value || property.purchase_price
   const cpfAccruedInterest = calculateCPFAccruedInterest(property.cpf_amount, property.purchase_date)
 
@@ -179,26 +262,26 @@ export function calculateNetProfit(property: any): number {
 }
 
 // Calculate ROI percentage
-export function calculateROI(property: any): number {
-  const totalCost = calculateTotalCost(property)
-  const netProfit = calculateNetProfit(property)
+export function calculateROI(property: any, refinances: RefinanceRecord[] = []): number {
+  const totalCost = calculateTotalCost(property, refinances)
+  const netProfit = calculateNetProfit(property, refinances)
 
   if (totalCost === 0) return 0
   return (netProfit / totalCost) * 100
 }
 
 // Calculate annualized return
-export function calculateAnnualizedReturn(property: any): number {
+export function calculateAnnualizedReturn(property: any, refinances: RefinanceRecord[] = []): number {
   const years = differenceInDays(new Date(), parseISO(property.purchase_date)) / 365.25
-  const roi = calculateROI(property)
+  const roi = calculateROI(property, refinances)
 
   if (years <= 0) return 0
   return Math.pow(1 + roi / 100, 1 / years) * 100 - 100
 }
 
 // Calculate break-even price
-export function calculateBreakEvenPrice(property: any): number {
-  const totalCost = calculateTotalCost(property)
+export function calculateBreakEvenPrice(property: any, refinances: RefinanceRecord[] = []): number {
+  const totalCost = calculateTotalCost(property, refinances)
   const cpfAccruedInterest = calculateCPFAccruedInterest(property.cpf_amount, property.purchase_date)
   const ssd = calculateSSD(totalCost + cpfAccruedInterest, property.purchase_date)
 
@@ -233,48 +316,58 @@ function getCpfRefundAtSale(cpfAmount: number, purchaseDate: string, holdMonths 
   return cpfAmount * Math.pow(1.025, years)
 }
 
-function estimateAdditionalMortgageInterest(property: any, holdMonths: number): number {
-  if (!property.mortgage_amount || !property.mortgage_interest_rate || holdMonths <= 0) return 0
-  return property.mortgage_amount * (property.mortgage_interest_rate / 100) * (holdMonths / 12)
+function estimateAdditionalMortgageInterest(property: any, holdMonths: number, refinances: RefinanceRecord[] = []): number {
+  let loanAmount = property.mortgage_amount
+  let rate = property.mortgage_interest_rate
+
+  if (refinances.length > 0) {
+    const sorted = [...refinances].sort((a, b) => a.refinance_date.localeCompare(b.refinance_date))
+    const latest = sorted[sorted.length - 1]
+    loanAmount = latest.loan_amount
+    rate = latest.interest_rate
+  }
+
+  if (!loanAmount || !rate || holdMonths <= 0) return 0
+  return loanAmount * (rate / 100) * (holdMonths / 12)
 }
 
-export function calculateSellNowProceeds(property: any): number {
+export function calculateSellNowProceeds(property: any, refinances: RefinanceRecord[] = []): number {
   const salePrice = property.current_value || property.purchase_price
-  const totalCosts = calculateTotalCost(property)
+  const totalCosts = calculateTotalCost(property, refinances)
   const ssd = calculateSSD(salePrice, property.purchase_date)
   const cpfRefund = getCpfRefundAtSale(property.cpf_amount, property.purchase_date, 0)
 
   return salePrice - totalCosts - ssd - cpfRefund
 }
 
-export function calculateHoldProceeds(property: any, holdMonths: number, appreciationRate: number): number {
+export function calculateHoldProceeds(property: any, holdMonths: number, appreciationRate: number, refinances: RefinanceRecord[] = []): number {
   const currentValue = property.current_value || property.purchase_price
   const projectedValue = currentValue * Math.pow(1 + appreciationRate / 100, holdMonths / 12)
-  const totalCosts = calculateTotalCost(property)
+  const totalCosts = calculateTotalCost(property, refinances)
   const ssdRate = getSSDRateAtSale(property.purchase_date, holdMonths)
   const ssd = projectedValue * (ssdRate / 100)
   const cpfRefund = getCpfRefundAtSale(property.cpf_amount, property.purchase_date, holdMonths)
-  const additionalMortgageInterest = estimateAdditionalMortgageInterest(property, holdMonths)
+  const additionalMortgageInterest = estimateAdditionalMortgageInterest(property, holdMonths, refinances)
 
-  const sellNowProceeds = calculateSellNowProceeds(property)
+  const sellNowProceeds = calculateSellNowProceeds(property, refinances)
   const opportunityCost = Math.max(sellNowProceeds, 0) * 0.03 * (holdMonths / 12)
 
   return projectedValue - totalCosts - additionalMortgageInterest - ssd - cpfRefund - opportunityCost
 }
 
-export function getSellRecommendation(property: any): {
+export function getSellRecommendation(property: any, refinances: RefinanceRecord[] = []): {
   message: string
   bestScenario: string
   holdMonths: number
   additionalProceeds: number
 } {
-  const nowProceeds = calculateSellNowProceeds(property)
-  const oneYearProceeds = calculateHoldProceeds(property, 12, 3)
-  const twoYearProceeds = calculateHoldProceeds(property, 24, 3)
+  const nowProceeds = calculateSellNowProceeds(property, refinances)
+  const oneYearProceeds = calculateHoldProceeds(property, 12, 3, refinances)
+  const twoYearProceeds = calculateHoldProceeds(property, 24, 3, refinances)
 
   const daysToSsdFree = Math.max(0, 1095 - differenceInDays(new Date(), parseISO(property.purchase_date)))
   const monthsToSsdFree = Math.ceil(daysToSsdFree / 30.44)
-  const ssdFreeProceeds = calculateHoldProceeds(property, monthsToSsdFree, 3)
+  const ssdFreeProceeds = calculateHoldProceeds(property, monthsToSsdFree, 3, refinances)
 
   const scenarios = [
     { label: "Sell now", holdMonths: 0, proceeds: nowProceeds },

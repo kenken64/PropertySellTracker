@@ -26,6 +26,7 @@ export default function AddProperty() {
   const [formData, setFormData] = useState({
     name: "",
     address: "",
+    unit_no: "",
     type: "",
     purchase_price: "",
     purchase_date: "",
@@ -67,6 +68,7 @@ export default function AddProperty() {
     const parsed = createPropertySchema.safeParse({
       name: formData.name,
       address: formData.address,
+      unit_no: formData.unit_no,
       type: formData.type,
       purchase_price: parseFloat(formData.purchase_price),
       purchase_date: formData.purchase_date,
@@ -173,7 +175,7 @@ export default function AddProperty() {
 
             <AddressLookup
               onSelect={(sgAddr) => {
-                setFormData((prev) => ({ ...prev, address: sgAddr.fullAddress }))
+                setFormData((prev) => ({ ...prev, address: sgAddr.fullAddress, unit_no: sgAddr.unitNo }))
               }}
               labels={{
                 postalCode: t("postalCode") || "Postal Code",

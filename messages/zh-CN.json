@@ -184,7 +184,21 @@
     "chartYear": "年份：{year}",
     "transactionHistory": "交易记录",
     "transactionHistoryDesc": "与该房产相关的全部交易。",
-    "noTransactions": "暂无交易记录。"
+    "noTransactions": "暂无交易记录。",
+    "refinancingHistory": "再融资记录",
+    "refinancingHistoryDesc": "跟踪按揭再融资，以准确计算利息。",
+    "addRefinance": "添加再融资",
+    "originalMortgage": "原始按揭",
+    "active": "当前生效",
+    "refinance": "再融资",
+    "refinanceDate": "再融资日期",
+    "noRefinances": "暂无再融资记录。计算使用原始按揭条款。",
+    "refinanceDescPlaceholder": "例如：转为固定利率",
+    "loanAmount": "贷款金额",
+    "interestRate": "利率",
+    "tenure": "年限",
+    "years": "年",
+    "description": "说明"
   },
   "HdbResale": {
     "title": "HDB 转售数据",
@@ -301,6 +315,7 @@
     "invalidEmail": "邮箱格式无效",
     "passwordMin": "密码至少 8 个字符",
     "passwordRequired": "请输入密码",
-    "invalidId": "ID 无效"
+    "invalidId": "ID 无效",
+    "refinanceLoanPositive": "贷款金额必须大于 0"
   }
 }

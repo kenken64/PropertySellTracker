@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { ArrowLeft, Calculator, Clock, DollarSign, Edit, TrendingDown, TrendingUp } from "lucide-react"
+import { ArrowLeft, Calculator, Clock, DollarSign, Edit, Plus, TrendingDown, TrendingUp, Trash2 } from "lucide-react"
 import {
   formatCurrency,
   formatPercent,
@@ -21,12 +21,14 @@ import {
   calculateSSD,
   calculateCPFAccruedInterest,
   getSSDCountdown,
+  calculateMortgageInterestPaidWithRefinances,
   calculateMortgageInterestPaid,
   calculateGrossYield,
   calculateNetYield,
   calculateSellNowProceeds,
   calculateHoldProceeds,
   getSellRecommendation,
+  type RefinanceRecord,
 } from "@/lib/utils"
 import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts"
 
@@ -34,6 +36,7 @@ interface Property {
   id: number
   name: string
   address: string
+  unit_no: string
   type: string
   purchase_price: number
   purchase_date: string
@@ -49,6 +52,7 @@ interface Property {
   target_profit_percentage: number
   target_profit_alert_sent: boolean
   transactions: any[]
+  refinances: RefinanceRecord[]
 }
 
 export default function PropertyDetail({ params }: { params: Promise<{ id: string }> }) {
@@ -60,6 +64,13 @@ export default function PropertyDetail({ params }: { params: Promise<{ id: strin
   const [targetProfitPercentage, setTargetProfitPercentage] = useState("")
   const [updating, setUpdating] = useState(false)
   const [appreciationRate, setAppreciationRate] = useState(3)
+  const [showRefiForm, setShowRefiForm] = useState(false)
+  const [refiDate, setRefiDate] = useState("")
+  const [refiLoan, setRefiLoan] = useState("")
+  const [refiRate, setRefiRate] = useState("")
+  const [refiTenure, setRefiTenure] = useState("")
+  const [refiDesc, setRefiDesc] = useState("")
+  const [refiSubmitting, setRefiSubmitting] = useState(false)
   const router = useRouter()
 
   useEffect(() => {
@@ -114,6 +125,51 @@ export default function PropertyDetail({ params }: { params: Promise<{ id: strin
     }
   }
 
+  const addRefinance = async () => {
+    if (!property || !refiDate || !refiLoan || !refiRate || !refiTenure) return
+    setRefiSubmitting(true)
+    try {
+      const response = await fetch(`/api/properties/${property.id}/refinances`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          refinance_date: refiDate,
+          loan_amount: parseFloat(refiLoan),
+          interest_rate: parseFloat(refiRate),
+          tenure: parseInt(refiTenure),
+          description: refiDesc,
+        }),
+      })
+      if (response.ok) {
+        setRefiDate("")
+        setRefiLoan("")
+        setRefiRate("")
+        setRefiTenure("")
+        setRefiDesc("")
+        setShowRefiForm(false)
+        fetchProperty()
+      }
+    } catch (error) {
+      console.error("Error adding refinance:", error)
+    } finally {
+      setRefiSubmitting(false)
+    }
+  }
+
+  const deleteRefinance = async (refinanceId: number) => {
+    if (!property) return
+    try {
+      const response = await fetch(`/api/properties/${property.id}/refinances?refinanceId=${refinanceId}`, {
+        method: "DELETE",
+      })
+      if (response.ok) {
+        fetchProperty()
+      }
+    } catch (error) {
+      console.error("Error deleting refinance:", error)
+    }
+  }
+
   if (loading) {
     return <div className="flex min-h-[50vh] items-center justify-center text-muted-foreground">Loading property details...</div>
   }
@@ -122,11 +178,12 @@ export default function PropertyDetail({ params }: { params: Promise<{ id: strin
     return <div className="py-8 text-center">Property not found.</div>
   }
 
-  const totalCost = calculateTotalCost(property)
-  const netProfit = calculateNetProfit(property)
-  const roi = calculateROI(property)
-  const annualizedReturn = calculateAnnualizedReturn(property)
-  const breakEvenPrice = calculateBreakEvenPrice(property)
+  const refinances = property.refinances || []
+  const totalCost = calculateTotalCost(property, refinances)
+  const netProfit = calculateNetProfit(property, refinances)
+  const roi = calculateROI(property, refinances)
+  const annualizedReturn = calculateAnnualizedReturn(property, refinances)
+  const breakEvenPrice = calculateBreakEvenPrice(property, refinances)
   const currentProfitPercentage = totalCost > 0 ? (netProfit / totalCost) * 100 : 0
   const targetProfit = Number(property.target_profit_percentage || 0)
   const hasTarget = targetProfit > 0
@@ -135,30 +192,38 @@ export default function PropertyDetail({ params }: { params: Promise<{ id: strin
   const salePrice = property.current_value || property.purchase_price
   const ssdAmount = calculateSSD(salePrice, property.purchase_date)
   const cpfAccruedInterest = calculateCPFAccruedInterest(property.cpf_amount, property.purchase_date)
-  const mortgageInterestPaid = calculateMortgageInterestPaid(
-    property.mortgage_amount,
-    property.mortgage_interest_rate,
-    property.mortgage_tenure,
-    property.purchase_date
-  )
+  const mortgageInterestPaid = refinances.length > 0
+    ? calculateMortgageInterestPaidWithRefinances(
+        property.mortgage_amount,
+        property.mortgage_interest_rate,
+        property.mortgage_tenure,
+        property.purchase_date,
+        refinances
+      )
+    : calculateMortgageInterestPaid(
+        property.mortgage_amount,
+        property.mortgage_interest_rate,
+        property.mortgage_tenure,
+        property.purchase_date
+      )
 
   const annualRental = (property.monthly_rental || 0) * 12
   const annualExpenses = 3000 + annualRental * 0.01 + 300
   const grossYield = calculateGrossYield(property.monthly_rental || 0, salePrice)
   const netYield = calculateNetYield(property.monthly_rental || 0, salePrice, annualExpenses)
 
-  const sellNowProceeds = calculateSellNowProceeds(property)
-  const holdOneYearProceeds = calculateHoldProceeds(property, 12, appreciationRate)
-  const holdTwoYearProceeds = calculateHoldProceeds(property, 24, appreciationRate)
+  const sellNowProceeds = calculateSellNowProceeds(property, refinances)
+  const holdOneYearProceeds = calculateHoldProceeds(property, 12, appreciationRate, refinances)
+  const holdTwoYearProceeds = calculateHoldProceeds(property, 24, appreciationRate, refinances)
 
   const daysToSsdFree = Math.max(0, 1095 - differenceInDays(new Date(), parseISO(property.purchase_date)))
   const monthsToSsdFree = Math.ceil(daysToSsdFree / 30.44)
-  const holdSsdFreeProceeds = calculateHoldProceeds(property, monthsToSsdFree, appreciationRate)
+  const holdSsdFreeProceeds = calculateHoldProceeds(property, monthsToSsdFree, appreciationRate, refinances)
 
   const sellRecommendation = getSellRecommendation({
     ...property,
     current_value: salePrice,
-  })
+  }, refinances)
 
   const projectionData = useMemo(() => {
     const data = []
@@ -196,7 +261,7 @@ export default function PropertyDetail({ params }: { params: Promise<{ id: strin
             </Button>
             <div className="space-y-1">
               <h1 className="text-2xl font-bold tracking-tight sm:text-4xl">{property.name}</h1>
-              <p className="text-sm text-muted-foreground sm:text-base">{property.address}</p>
+              <p className="text-sm text-muted-foreground sm:text-base">{property.address}{property.unit_no ? ` (Unit: #${property.unit_no})` : ""}</p>
               <span className="inline-flex rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">{property.type}</span>
             </div>
           </div>
@@ -469,6 +534,127 @@ export default function PropertyDetail({ params }: { params: Promise<{ id: strin
               </CardContent>
             </Card>
           </div>
+
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Refinancing History</CardTitle>
+                  <CardDescription>Track mortgage refinances over time for accurate interest calculations.</CardDescription>
+                </div>
+                <Button variant="outline" size="sm" onClick={() => setShowRefiForm(!showRefiForm)}>
+                  <Plus className="mr-1 h-4 w-4" />
+                  Add Refinance
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Original Mortgage */}
+              <div className="rounded-xl border border-border/70 p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold">Original Mortgage</span>
+                    {refinances.length === 0 && (
+                      <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400">Active</span>
+                    )}
+                  </div>
+                  <span className="text-xs text-muted-foreground">{new Date(property.purchase_date).toLocaleDateString()}</span>
+                </div>
+                <div className="mt-2 grid grid-cols-3 gap-3 text-sm">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Loan Amount</p>
+                    <p className="font-semibold">{formatCurrency(property.mortgage_amount)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Interest Rate</p>
+                    <p className="font-semibold">{formatPercent(property.mortgage_interest_rate)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Tenure</p>
+                    <p className="font-semibold">{property.mortgage_tenure} years</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Refinance Records */}
+              {refinances.length > 0 ? (
+                refinances.map((refi, index) => (
+                  <div key={refi.id} className="rounded-xl border border-border/70 p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold">Refinance</span>
+                        {index === refinances.length - 1 && (
+                          <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400">Active</span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-muted-foreground">{new Date(refi.refinance_date).toLocaleDateString()}</span>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-red-600" onClick={() => deleteRefinance(refi.id)}>
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="mt-2 grid grid-cols-3 gap-3 text-sm">
+                      <div>
+                        <p className="text-xs text-muted-foreground">Loan Amount</p>
+                        <p className="font-semibold">{formatCurrency(refi.loan_amount)}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Interest Rate</p>
+                        <p className="font-semibold">{formatPercent(refi.interest_rate)}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Tenure</p>
+                        <p className="font-semibold">{refi.tenure} years</p>
+                      </div>
+                    </div>
+                    {refi.description && (
+                      <p className="mt-2 text-xs text-muted-foreground">{refi.description}</p>
+                    )}
+                  </div>
+                ))
+              ) : (
+                <p className="text-center text-sm text-muted-foreground">No refinances recorded. Original mortgage terms are used for calculations.</p>
+              )}
+
+              {/* Add Refinance Form */}
+              {showRefiForm && (
+                <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 space-y-3">
+                  <p className="text-sm font-semibold">Add Refinance</p>
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                    <div>
+                      <label className="text-xs text-muted-foreground">Refinance Date</label>
+                      <Input type="date" value={refiDate} onChange={(e) => setRefiDate(e.target.value)} className="h-9 text-xs" />
+                    </div>
+                    <div>
+                      <label className="text-xs text-muted-foreground">Loan Amount (SGD)</label>
+                      <Input type="number" value={refiLoan} onChange={(e) => setRefiLoan(e.target.value)} placeholder="e.g., 500000" className="h-9 text-xs" />
+                    </div>
+                    <div>
+                      <label className="text-xs text-muted-foreground">Interest Rate (%)</label>
+                      <Input type="number" step="0.01" value={refiRate} onChange={(e) => setRefiRate(e.target.value)} placeholder="e.g., 3.5" className="h-9 text-xs" />
+                    </div>
+                    <div>
+                      <label className="text-xs text-muted-foreground">Tenure (Years)</label>
+                      <Input type="number" value={refiTenure} onChange={(e) => setRefiTenure(e.target.value)} placeholder="e.g., 25" className="h-9 text-xs" />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground">Description</label>
+                    <Input value={refiDesc} onChange={(e) => setRefiDesc(e.target.value)} placeholder="e.g., Switched to fixed rate" className="h-9 text-xs" />
+                  </div>
+                  <div className="flex gap-2">
+                    <Button size="sm" onClick={addRefinance} disabled={refiSubmitting || !refiDate || !refiLoan || !refiRate || !refiTenure} className="h-9">
+                      {refiSubmitting ? "Adding..." : "Add Refinance"}
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => setShowRefiForm(false)} className="h-9">
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="sell-analysis" className="space-y-4">

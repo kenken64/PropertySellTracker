@@ -14,6 +14,7 @@ const defaultValidationMessages = {
   passwordMin: "Password must be at least 8 characters",
   passwordRequired: "Password is required",
   invalidId: "Invalid ID",
+  refinanceLoanPositive: "Loan amount must be positive",
 } as const
 
 const defaultTranslator: Translator = (key) => defaultValidationMessages[key as keyof typeof defaultValidationMessages] ?? key
@@ -32,6 +33,7 @@ export const getCreatePropertySchema = (t: Translator = defaultTranslator) =>
   z.object({
     name: z.string().min(1, t("propertyNameRequired")).max(200),
     address: z.string().min(1, t("addressRequired")).max(500),
+    unit_no: z.string().max(20).optional().default(""),
     type: createPropertyTypeSchema(t),
     purchase_price: z.number().positive(t("purchasePricePositive")).max(100000000),
     purchase_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, t("invalidDateFormat")),
@@ -93,3 +95,15 @@ export const getIdParamSchema = (t: Translator = defaultTranslator) =>
   })
 
 export const idParamSchema = getIdParamSchema()
+
+// Refinance record
+export const getRefinanceSchema = (t: Translator = defaultTranslator) =>
+  z.object({
+    refinance_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, t("invalidDateFormat")),
+    loan_amount: z.number().positive(t("refinanceLoanPositive")).max(100000000),
+    interest_rate: z.number().min(0).max(30),
+    tenure: z.number().int().min(1).max(35),
+    description: z.string().max(200).optional().default(""),
+  })
+
+export const refinanceSchema = getRefinanceSchema()
