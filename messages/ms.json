@@ -101,7 +101,8 @@
     "targetProfitAlert": "Amaran Sasaran Keuntungan (%)",
     "addingProperty": "Sedang menambah hartanah...",
     "errorPrefix": "Ralat: {message}",
-    "addPropertyError": "Ralat berlaku semasa menambah hartanah"
+    "addPropertyError": "Ralat berlaku semasa menambah hartanah",
+    "postalCode": "Poskod"
   },
   "PropertyDetail": {
     "loading": "Sedang memuatkan butiran hartanah...",

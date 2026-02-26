@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation"
 import { useTranslations } from "next-intl"
 import { ArrowLeft, Calculator } from "lucide-react"
 
+import { AddressLookup } from "@/components/address-lookup"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -170,11 +171,17 @@ export default function AddProperty() {
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="address">{t("address")}</Label>
-              <Input id="address" value={formData.address} onChange={(e) => handleInputChange("address", e.target.value)} placeholder={t("addressPlaceholder")} />
-              {errors.address ? <p className="mt-1 text-sm text-red-500">{errors.address[0]}</p> : null}
-            </div>
+            <AddressLookup
+              onSelect={({ address, postalCode }) => {
+                setFormData((prev) => ({ ...prev, address: postalCode ? `${address} (S${postalCode})` : address }))
+              }}
+              initialAddress={formData.address}
+              addressLabel={t("address")}
+              postalCodeLabel={t("postalCode") || "Postal Code"}
+              addressPlaceholder={t("addressPlaceholder")}
+              postalCodePlaceholder="e.g. 310333"
+              addressError={errors.address?.[0]}
+            />
           </CardContent>
         </Card>
 

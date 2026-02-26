@@ -101,7 +101,8 @@
     "targetProfitAlert": "Target Profit Alert (%)",
     "addingProperty": "Adding Property...",
     "errorPrefix": "Error: {message}",
-    "addPropertyError": "An error occurred while adding the property"
+    "addPropertyError": "An error occurred while adding the property",
+    "postalCode": "Postal Code"
   },
   "PropertyDetail": {
     "loading": "Loading property details...",
