@@ -8,7 +8,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Switch } from "@/components/ui/switch"
 import { telegramSettingsSchema } from "@/lib/validations"
 
 export default function SettingsPage() {
@@ -20,6 +19,8 @@ export default function SettingsPage() {
   const [testing, setTesting] = useState(false)
   const [errors, setErrors] = useState<Record<string, string[]>>({})
   const [showToken, setShowToken] = useState(false)
+  const [statusMessage, setStatusMessage] = useState("")
+  const [statusType, setStatusType] = useState<"success" | "error" | "">("")
   const t = useTranslations("Settings")
 
   useEffect(() => {
@@ -54,6 +55,8 @@ export default function SettingsPage() {
       return
     }
     setErrors({})
+    setStatusMessage("")
+    setStatusType("")
     setSaving(true)
     try {
       const response = await fetch("/api/settings/telegram", {
@@ -68,16 +71,20 @@ export default function SettingsPage() {
         throw new Error("Failed to save")
       }
 
-      alert(t("saved"))
+      setStatusMessage(t("saved"))
+      setStatusType("success")
     } catch (error) {
       console.error("Failed to save settings:", error)
-      alert(t("saveFailed"))
+      setStatusMessage(t("saveFailed"))
+      setStatusType("error")
     } finally {
       setSaving(false)
     }
   }
 
   const sendTestMessage = async () => {
+    setStatusMessage("")
+    setStatusType("")
     setTesting(true)
     try {
       const response = await fetch("/api/settings/telegram/test", {
@@ -95,10 +102,12 @@ export default function SettingsPage() {
         throw new Error("Failed to send test")
       }
 
-      alert(t("testSent"))
+      setStatusMessage(t("testSent"))
+      setStatusType("success")
     } catch (error) {
       console.error("Failed to send test message:", error)
-      alert(t("testFailed"))
+      setStatusMessage(t("testFailed"))
+      setStatusType("error")
     } finally {
       setTesting(false)
     }
@@ -157,17 +166,42 @@ export default function SettingsPage() {
               {errors.telegram_chat_id ? <p className="mt-1 text-sm text-red-500">{errors.telegram_chat_id[0]}</p> : null}
             </div>
 
-            <button
-              type="button"
-              className="flex w-full items-center justify-between rounded-xl border border-border/70 p-3 text-left"
-              onClick={() => setAlertsEnabled(!alertsEnabled)}
-            >
-              <div className="flex-1 space-y-0.5">
+            <div className="space-y-3 rounded-xl border border-border/70 bg-muted/30 p-4 text-sm">
+              <p className="font-semibold">{t("howToGetCredentials")}</p>
+              <div className="space-y-2">
+                <p className="font-medium">{t("botTokenTitle")}</p>
+                <ol className="list-inside list-decimal space-y-1 text-muted-foreground">
+                  <li>{t("botTokenStep1")}</li>
+                  <li>{t("botTokenStep2")}</li>
+                  <li>{t("botTokenStep3")}</li>
+                </ol>
+              </div>
+              <div className="space-y-2">
+                <p className="font-medium">{t("chatIdTitle")}</p>
+                <ol className="list-inside list-decimal space-y-1 text-muted-foreground">
+                  <li>{t("chatIdStep1")}</li>
+                  <li>{t("chatIdStep2")}</li>
+                  <li>{t("chatIdStep3")}</li>
+                  <li>{t("chatIdStep4")}</li>
+                </ol>
+                <p className="font-mono text-xs text-muted-foreground">{t("chatIdApiExample")}</p>
+                <p className="text-xs text-muted-foreground">{t("chatIdPrivateHint")}</p>
+              </div>
+            </div>
+
+            <div className="flex w-full items-center justify-between rounded-xl border border-border/70 p-3 text-left">
+              <Label htmlFor="alerts_enabled" className="flex-1 cursor-pointer space-y-0.5">
                 <span className="block text-sm font-medium">{t("enableAlerts")}</span>
                 <span className="block text-xs text-muted-foreground">{t("enableAlertsDesc")}</span>
-              </div>
-              <Switch checked={alertsEnabled} onCheckedChange={setAlertsEnabled} tabIndex={-1} />
-            </button>
+              </Label>
+              <input
+                id="alerts_enabled"
+                type="checkbox"
+                checked={alertsEnabled}
+                onChange={(event) => setAlertsEnabled(event.target.checked)}
+                className="h-4 w-4 cursor-pointer accent-primary"
+              />
+            </div>
 
             <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
               <Button type="button" variant="outline" onClick={sendTestMessage} disabled={testing} className="w-full sm:w-auto">
@@ -177,6 +211,10 @@ export default function SettingsPage() {
                 {saving ? t("saving") : t("saveSettings")}
               </Button>
             </div>
+
+            {statusMessage ? (
+              <p className={`text-sm ${statusType === "success" ? "text-emerald-600" : "text-red-500"}`}>{statusMessage}</p>
+            ) : null}
           </form>
         </CardContent>
       </Card>

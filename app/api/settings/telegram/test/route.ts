@@ -2,6 +2,14 @@ import { NextRequest, NextResponse } from "next/server"
 import sql, { initDB } from "@/lib/database"
 import { auth } from "@/lib/auth"
 import { sendTelegramMessage } from "@/lib/telegram"
+import {
+  calculateNetProfit,
+  calculateROI,
+  formatCurrency,
+  formatPercent,
+  getSellRecommendation,
+  type RefinanceRecord,
+} from "@/lib/utils"
 
 function getUserIdFromSession(session: { user?: { id?: string } } | null) {
   const userId = Number(session?.user?.id)
@@ -42,9 +50,46 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    const properties = await sql`
+      SELECT *
+      FROM properties
+      WHERE user_id = ${userId}
+      ORDER BY updated_at DESC, id DESC
+      LIMIT 1
+    `
+
+    if (properties.length === 0) {
+      await sendTelegramMessage(
+        chatId,
+        "Test message from PropertySellTracker. Telegram alerts are connected.",
+        botToken
+      )
+      return NextResponse.json({ success: true })
+    }
+
+    const property = properties[0]
+    const refinances = await sql`
+      SELECT *
+      FROM refinances
+      WHERE property_id = ${property.id}
+      ORDER BY refinance_date ASC
+    `
+
+    const netProfit = calculateNetProfit(property, refinances as RefinanceRecord[])
+    const roi = calculateROI(property, refinances as RefinanceRecord[])
+    const recommendation = getSellRecommendation(property, refinances as RefinanceRecord[])
+    const currentValue = property.current_value || property.purchase_price
+
+    const message =
+      `🧪 Test alert from PropertySellTracker\n` +
+      `Property: ${property.name}\n` +
+      `Current value: ${formatCurrency(currentValue)}\n` +
+      `Net P&L: ${formatCurrency(netProfit)} (${formatPercent(roi)})\n` +
+      `Sell/Hold: ${recommendation.message}`
+
     await sendTelegramMessage(
       chatId,
-      "Test message from PropertySellTracker. Telegram alerts are connected.",
+      message,
       botToken
     )
 

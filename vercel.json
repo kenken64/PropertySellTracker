@@ -1,0 +1,12 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/profit-check",
+      "schedule": "*/30 * * * *"
+    },
+    {
+      "path": "/api/cron/ssd-check",
+      "schedule": "0 1 * * *"
+    }
+  ]
+}

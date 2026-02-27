@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import sql, { initDB } from "@/lib/database"
 import { auth } from "@/lib/auth"
 import { getDaysToSSDFree, getSSDFreeDate } from "@/lib/utils"
@@ -11,35 +11,71 @@ function getUserIdFromSession(session: { user?: { id?: string } } | null) {
 
 const ALERT_DAYS = new Set([30, 7, 1])
 
-export async function GET() {
-  try {
-    const session = await auth()
-    const userId = getUserIdFromSession(session)
+function isCronAuthorized(request: NextRequest): boolean {
+  const cronSecret = process.env.CRON_SECRET
+  if (!cronSecret) return false
 
-    if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const bearer = request.headers.get("authorization")
+  const headerSecret = request.headers.get("x-cron-secret")
+
+  return bearer === `Bearer ${cronSecret}` || headerSecret === cronSecret
+}
+
+export async function GET(request: NextRequest) {
+  try {
+    const cronAuthorized = isCronAuthorized(request)
+    let userId: number | null = null
+
+    if (!cronAuthorized) {
+      const session = await auth()
+      userId = getUserIdFromSession(session)
+
+      if (!userId) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+      }
     }
 
     await initDB()
 
-    const properties = await sql`
-      SELECT
-        p.id,
-        p.name,
-        p.purchase_date,
-        p.user_id,
-        us.telegram_bot_token,
-        us.telegram_chat_id,
-        us.alerts_enabled
-      FROM properties p
-      INNER JOIN user_settings us ON us.user_id = p.user_id
-      WHERE p.purchase_date::date + INTERVAL '3 years' >= CURRENT_DATE
-        AND us.alerts_enabled = true
-        AND us.telegram_bot_token IS NOT NULL
-        AND us.telegram_bot_token <> ''
-        AND us.telegram_chat_id IS NOT NULL
-        AND us.telegram_chat_id <> ''
-    `
+    const properties =
+      userId === null
+        ? await sql`
+            SELECT
+              p.id,
+              p.name,
+              p.purchase_date,
+              p.user_id,
+              us.telegram_bot_token,
+              us.telegram_chat_id,
+              us.alerts_enabled
+            FROM properties p
+            INNER JOIN user_settings us ON us.user_id = p.user_id
+            WHERE p.purchase_date::date + INTERVAL '3 years' >= CURRENT_DATE
+              AND us.alerts_enabled = true
+              AND us.telegram_bot_token IS NOT NULL
+              AND us.telegram_bot_token <> ''
+              AND us.telegram_chat_id IS NOT NULL
+              AND us.telegram_chat_id <> ''
+          `
+        : await sql`
+            SELECT
+              p.id,
+              p.name,
+              p.purchase_date,
+              p.user_id,
+              us.telegram_bot_token,
+              us.telegram_chat_id,
+              us.alerts_enabled
+            FROM properties p
+            INNER JOIN user_settings us ON us.user_id = p.user_id
+            WHERE p.purchase_date::date + INTERVAL '3 years' >= CURRENT_DATE
+              AND us.alerts_enabled = true
+              AND us.telegram_bot_token IS NOT NULL
+              AND us.telegram_bot_token <> ''
+              AND us.telegram_chat_id IS NOT NULL
+              AND us.telegram_chat_id <> ''
+              AND p.user_id = ${userId}
+          `
 
     let sentCount = 0
     const errors: string[] = []
