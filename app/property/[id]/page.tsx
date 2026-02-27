@@ -101,22 +101,63 @@ export default function PropertyDetail({ params }: { params: Promise<{ id: strin
 
     setUpdating(true)
     try {
+      const toNumber = (value: unknown, fallback = 0) => {
+        if (typeof value === "number") return value
+        if (typeof value === "string") {
+          const parsed = parseFloat(value)
+          return Number.isFinite(parsed) ? parsed : fallback
+        }
+        return fallback
+      }
+
+      const parsedTargetInput = parseFloat(targetProfitPercentage)
+      let normalizedTargetProfitPercentage = Math.max(0, parsedTargetInput || 0)
+      // Accept both target profit (%) and target sale price. Values > 1000 are treated as sale price.
+      if (Number.isFinite(parsedTargetInput) && parsedTargetInput > 1000) {
+        const propertyRefinances = property.refinances || []
+        const totalCostForTarget = calculateTotalCost(property, propertyRefinances)
+        const cpfAccruedForTarget = calculateCPFAccruedInterest(property.cpf_amount, property.purchase_date)
+        normalizedTargetProfitPercentage =
+          totalCostForTarget > 0
+            ? ((parsedTargetInput - totalCostForTarget - cpfAccruedForTarget) / totalCostForTarget) * 100
+            : 0
+      }
+      normalizedTargetProfitPercentage = Math.min(1000, Math.max(0, normalizedTargetProfitPercentage))
+
+      const payload = {
+        name: property.name,
+        address: property.address,
+        unit_no: property.unit_no || "",
+        type: property.type,
+        purchase_price: toNumber(property.purchase_price),
+        purchase_date: property.purchase_date?.slice(0, 10),
+        stamp_duty: toNumber(property.stamp_duty),
+        renovation_cost: toNumber(property.renovation_cost),
+        agent_fees: toNumber(property.agent_fees),
+        current_value: Math.max(0, parseFloat(currentValue) || 0),
+        cpf_amount: toNumber(property.cpf_amount),
+        mortgage_amount: toNumber(property.mortgage_amount),
+        mortgage_interest_rate: toNumber(property.mortgage_interest_rate),
+        mortgage_tenure: Math.trunc(toNumber(property.mortgage_tenure)),
+        monthly_rental: Math.max(0, parseFloat(monthlyRental) || 0),
+        target_profit_percentage: normalizedTargetProfitPercentage,
+      }
+
       const response = await fetch(`/api/properties/${property.id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          ...property,
-          current_value: parseFloat(currentValue),
-          monthly_rental: parseFloat(monthlyRental) || 0,
-          target_profit_percentage: parseFloat(targetProfitPercentage) || 0,
-        }),
+        body: JSON.stringify(payload),
       })
 
       if (response.ok) {
         const updated = await response.json()
         setProperty(updated)
+        setTargetProfitPercentage((updated.target_profit_percentage || 0).toString())
+      } else {
+        const errorBody = await response.json().catch(() => null)
+        console.error("Property update validation failed:", errorBody)
       }
     } catch (error) {
       console.error("Error updating property:", error)
@@ -170,16 +211,31 @@ export default function PropertyDetail({ params }: { params: Promise<{ id: strin
     }
   }
 
+  const projectionData = useMemo(() => {
+    if (!property) return []
+    const salePrice = property.current_value || property.purchase_price
+    const data = []
+    const startDate = new Date(property.purchase_date)
+    const currentDate = new Date()
+
+    data.push({ date: startDate.getFullYear().toString(), value: property.purchase_price, type: "historical" })
+    data.push({ date: currentDate.getFullYear().toString(), value: salePrice, type: "current" })
+
+    for (let i = 1; i <= 5; i++) {
+      const futureDate = new Date(currentDate.getFullYear() + i, 0, 1)
+      const projectedValue = salePrice * Math.pow(1 + appreciationRate / 100, i)
+      data.push({ date: futureDate.getFullYear().toString(), value: projectedValue, type: "projection" })
+    }
+
+    return data
+  }, [appreciationRate, property])
+
   if (loading) {
     return <div className="flex min-h-[50vh] items-center justify-center text-muted-foreground">Loading property details...</div>
   }
 
   if (!property) {
     return <div className="flex min-h-[50vh] items-center justify-center text-muted-foreground">Property not found.</div>
-  }
-
-  if (!property) {
-    return <div className="py-8 text-center">Property not found.</div>
   }
 
   const refinances = property.refinances || []
@@ -229,23 +285,6 @@ export default function PropertyDetail({ params }: { params: Promise<{ id: strin
     current_value: salePrice,
   }, refinances)
 
-  const projectionData = useMemo(() => {
-    const data = []
-    const startDate = new Date(property.purchase_date)
-    const currentDate = new Date()
-
-    data.push({ date: startDate.getFullYear().toString(), value: property.purchase_price, type: "historical" })
-    data.push({ date: currentDate.getFullYear().toString(), value: salePrice, type: "current" })
-
-    for (let i = 1; i <= 5; i++) {
-      const futureDate = new Date(currentDate.getFullYear() + i, 0, 1)
-      const projectedValue = salePrice * Math.pow(1 + appreciationRate / 100, i)
-      data.push({ date: futureDate.getFullYear().toString(), value: projectedValue, type: "projection" })
-    }
-
-    return data
-  }, [appreciationRate, property.purchase_date, property.purchase_price, salePrice])
-
   const sellRows = [
     { label: "Sell Now", months: 0, proceeds: sellNowProceeds },
     { label: "Hold 1 Year", months: 12, proceeds: holdOneYearProceeds },
@@ -269,15 +308,17 @@ export default function PropertyDetail({ params }: { params: Promise<{ id: strin
               <span className="inline-flex rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">{property.type}</span>
             </div>
           </div>
-          <Button variant="outline" className="w-full lg:w-auto">
-            <Edit className="mr-2 h-4 w-4" />
-            Edit Property
+          <Button variant="outline" className="w-full lg:w-auto" asChild>
+            <Link href="#snapshot-editor">
+              <Edit className="mr-2 h-4 w-4" />
+              Edit Property
+            </Link>
           </Button>
         </div>
       </section>
 
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Card className="metric-tile">
+        <Card id="snapshot-editor" className="metric-tile">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Investment</CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
@@ -304,9 +345,10 @@ export default function PropertyDetail({ params }: { params: Promise<{ id: strin
               step="0.01"
               value={targetProfitPercentage}
               onChange={(e) => setTargetProfitPercentage(e.target.value)}
-              placeholder="Target profit %"
+              placeholder="Target % (or sale price)"
               className="h-9 text-xs"
             />
+            <p className="text-[11px] text-muted-foreground">Tip: values above 1000 are treated as target sale price and auto-converted to %.</p>
             <Button size="sm" onClick={updatePropertySnapshot} disabled={updating} className="h-9 w-full">
               {updating ? "Updating..." : "Update Value + Rental + Target"}
             </Button>

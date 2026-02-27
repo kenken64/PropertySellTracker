@@ -24,10 +24,11 @@ export async function GET(
         { status: 400 }
       )
     }
+    const propertyId = Number(idParsed.data.id)
 
     const properties = await sql`
       SELECT * FROM properties
-      WHERE id = ${idParsed.data.id} AND user_id = ${userId}
+      WHERE id = ${propertyId} AND user_id = ${userId}
     `
     
     if (properties.length === 0) {
@@ -39,13 +40,13 @@ export async function GET(
 
     const transactions = await sql`
       SELECT * FROM transactions
-      WHERE property_id = ${idParsed.data.id}
+      WHERE property_id = ${propertyId}
       ORDER BY date DESC
     `
 
     const refinances = await sql`
       SELECT * FROM refinances
-      WHERE property_id = ${idParsed.data.id}
+      WHERE property_id = ${propertyId}
       ORDER BY refinance_date ASC
     `
 
@@ -80,6 +81,7 @@ export async function PUT(
         { status: 400 }
       )
     }
+    const propertyId = Number(idParsed.data.id)
 
     const data = await request.json()
     const parsed = updatePropertySchema.safeParse(data)
@@ -105,7 +107,7 @@ export async function PUT(
             WHEN ${validated.target_profit_percentage} <> target_profit_percentage THEN false
             ELSE target_profit_alert_sent
           END
-      WHERE id = ${idParsed.data.id} AND user_id = ${userId}
+      WHERE id = ${propertyId} AND user_id = ${userId}
       RETURNING *
     `
 
@@ -147,10 +149,11 @@ export async function DELETE(
         { status: 400 }
       )
     }
+    const propertyId = Number(idParsed.data.id)
 
     const result = await sql`
       DELETE FROM properties
-      WHERE id = ${idParsed.data.id} AND user_id = ${userId}
+      WHERE id = ${propertyId} AND user_id = ${userId}
       RETURNING id
     `
 
