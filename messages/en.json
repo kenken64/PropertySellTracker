@@ -76,6 +76,7 @@
     "selectPropertyType": "Select property type",
     "condominium": "Condominium",
     "landedProperty": "Landed Property",
+    "commercialProperty": "Commercial Property",
     "address": "Address",
     "addressPlaceholder": "Full property address",
     "purchaseDetails": "Purchase Details",

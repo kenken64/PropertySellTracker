@@ -167,6 +167,7 @@ export default function AddProperty() {
                     <SelectItem value="HDB">HDB</SelectItem>
                     <SelectItem value="Condo">{t("condominium")}</SelectItem>
                     <SelectItem value="Landed">{t("landedProperty")}</SelectItem>
+                    <SelectItem value="Commercial">{t("commercialProperty")}</SelectItem>
                   </SelectContent>
                 </Select>
                 {errors.type ? <p className="mt-1 text-sm text-red-500">{errors.type[0]}</p> : null}

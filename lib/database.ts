@@ -19,7 +19,7 @@ export async function initDB() {
       id SERIAL PRIMARY KEY,
       name TEXT NOT NULL,
       address TEXT NOT NULL,
-      type TEXT NOT NULL CHECK (type IN ('HDB', 'Condo', 'Landed')),
+      type TEXT NOT NULL CHECK (type IN ('HDB', 'Condo', 'Landed', 'Commercial')),
       purchase_price REAL NOT NULL,
       purchase_date TEXT NOT NULL,
       stamp_duty REAL DEFAULT 0,
@@ -58,6 +58,17 @@ export async function initDB() {
   await sql`
     ALTER TABLE properties
     ADD COLUMN IF NOT EXISTS unit_no TEXT DEFAULT ''
+  `
+
+  await sql`
+    ALTER TABLE properties
+    DROP CONSTRAINT IF EXISTS properties_type_check
+  `
+
+  await sql`
+    ALTER TABLE properties
+    ADD CONSTRAINT properties_type_check
+    CHECK (type IN ('HDB', 'Condo', 'Landed', 'Commercial'))
   `
 
   await sql`

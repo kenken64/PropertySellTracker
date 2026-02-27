@@ -20,7 +20,7 @@ const defaultValidationMessages = {
 const defaultTranslator: Translator = (key) => defaultValidationMessages[key as keyof typeof defaultValidationMessages] ?? key
 
 // Property types
-export const propertyTypeSchema = z.enum(["HDB", "Condo", "Landed"])
+export const propertyTypeSchema = z.enum(["HDB", "Condo", "Landed", "Commercial"])
 
 const createPropertyTypeSchema = (t: Translator) =>
   z

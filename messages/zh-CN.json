@@ -76,6 +76,7 @@
     "selectPropertyType": "选择房产类型",
     "condominium": "公寓（Condominium）",
     "landedProperty": "有地住宅",
+    "commercialProperty": "商业物业",
     "address": "地址",
     "addressPlaceholder": "完整房产地址",
     "purchaseDetails": "购买详情",
