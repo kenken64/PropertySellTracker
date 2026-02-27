@@ -71,6 +71,10 @@ export default function PropertyDetail({ params }: { params: Promise<{ id: strin
   const [refiTenure, setRefiTenure] = useState("")
   const [refiDesc, setRefiDesc] = useState("")
   const [refiSubmitting, setRefiSubmitting] = useState(false)
+  const [aiGuidance, setAIGuidance] = useState("")
+  const [guidanceLoading, setGuidanceLoading] = useState(false)
+  const [guidanceError, setGuidanceError] = useState("")
+  const [marketContext, setMarketContext] = useState("")
   const router = useRouter()
 
   useEffect(() => {
@@ -163,6 +167,29 @@ export default function PropertyDetail({ params }: { params: Promise<{ id: strin
       console.error("Error updating property:", error)
     } finally {
       setUpdating(false)
+    }
+  }
+
+  const requestAIGuidance = async () => {
+    if (!property) return
+
+    setGuidanceError("")
+    setGuidanceLoading(true)
+    try {
+      const query = marketContext ? `?marketContext=${encodeURIComponent(marketContext)}` : ""
+      const response = await fetch(`/api/properties/${property.id}/ai-guidance${query}`)
+      if (!response.ok) {
+        const errorBody = await response.json().catch(() => null)
+        setGuidanceError(errorBody?.error || "Failed to fetch AI guidance")
+        return
+      }
+      const body = await response.json()
+      setAIGuidance(body.advice || "No guidance returned.")
+    } catch (error) {
+      console.error("AI guidance error:", error)
+      setGuidanceError("Unable to reach AI service")
+    } finally {
+      setGuidanceLoading(false)
     }
   }
 
@@ -376,6 +403,40 @@ export default function PropertyDetail({ params }: { params: Promise<{ id: strin
             <p className="text-xs text-muted-foreground">Estimated with SSD</p>
           </CardContent>
         </Card>
+      </section>
+
+      <section className="rounded-3xl border border-border/60 bg-card/80 p-5 shadow-sm backdrop-blur sm:p-8 space-y-4">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-semibold">AI Market Guidance</h2>
+            <p className="text-sm text-muted-foreground">
+              Feed a short market context (optional) and get a concise sell/hold/refi recommendation.
+            </p>
+          </div>
+          <Button
+            size="sm"
+            onClick={requestAIGuidance}
+            disabled={guidanceLoading || !property}
+          >
+            {guidanceLoading ? "Analyzing..." : "Refresh advice"}
+          </Button>
+        </div>
+        <textarea
+          value={marketContext}
+          onChange={(e) => setMarketContext(e.target.value)}
+          placeholder="e.g., 3% condo appreciation, rent up 2%, MAS 3m at 4.5%"
+          className="min-h-[120px] w-full rounded-xl border border-border/60 bg-background px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none"
+        />
+        {guidanceError ? (
+          <p className="text-xs text-red-500">{guidanceError}</p>
+        ) : null}
+        {aiGuidance ? (
+          <div className="rounded-lg bg-muted/60 p-4 text-sm text-muted-foreground">
+            <p className="whitespace-pre-line text-foreground">{aiGuidance}</p>
+          </div>
+        ) : (
+          <p className="text-xs text-muted-foreground">Click "Refresh advice" to ask the AI for guidance using the latest data.</p>
+        )}
       </section>
 
       {!ssdInfo.isExempt && (
