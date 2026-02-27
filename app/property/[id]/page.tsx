@@ -175,6 +175,10 @@ export default function PropertyDetail({ params }: { params: Promise<{ id: strin
   }
 
   if (!property) {
+    return <div className="flex min-h-[50vh] items-center justify-center text-muted-foreground">Property not found.</div>
+  }
+
+  if (!property) {
     return <div className="py-8 text-center">Property not found.</div>
   }
 
