@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Switch } from "@/components/ui/switch"
 import { telegramSettingsSchema } from "@/lib/validations"
 
 export default function SettingsPage() {
@@ -190,17 +191,11 @@ export default function SettingsPage() {
             </div>
 
             <div className="flex w-full items-center justify-between rounded-xl border border-border/70 p-3 text-left">
-              <Label htmlFor="alerts_enabled" className="flex-1 cursor-pointer space-y-0.5">
+              <div className="flex-1 space-y-0.5">
                 <span className="block text-sm font-medium">{t("enableAlerts")}</span>
                 <span className="block text-xs text-muted-foreground">{t("enableAlertsDesc")}</span>
-              </Label>
-              <input
-                id="alerts_enabled"
-                type="checkbox"
-                checked={alertsEnabled}
-                onChange={(event) => setAlertsEnabled(event.target.checked)}
-                className="h-4 w-4 cursor-pointer accent-primary"
-              />
+              </div>
+              <Switch checked={alertsEnabled} onCheckedChange={setAlertsEnabled} />
             </div>
 
             <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
